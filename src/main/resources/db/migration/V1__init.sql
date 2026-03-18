@@ -1,0 +1,5 @@
+-- V1__init.sql
+-- Placeholder initial migration for the Credit Scoring Engine.
+-- Domain-specific tables will be added in subsequent migrations as each
+-- bounded context (applicant, financialdata, scoring, evaluation, reporting)
+-- is implemented.

@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    co.udea.codefactory.creditscoring: INFO
+    org.springframework: WARN
+    org.testcontainers: INFO

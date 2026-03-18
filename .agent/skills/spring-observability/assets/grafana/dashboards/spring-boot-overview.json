@@ -1,0 +1,150 @@
+{
+  "dashboard": {
+    "title": "Spring Boot Overview",
+    "uid": "spring-boot-overview",
+    "timezone": "browser",
+    "refresh": "10s",
+    "templating": {
+      "list": [
+        {
+          "name": "app",
+          "type": "query",
+          "query": "label_values(application)",
+          "datasource": "Prometheus",
+          "current": {},
+          "refresh": 1
+        }
+      ]
+    },
+    "panels": [
+      {
+        "title": "Request Rate (req/s)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{application=\"$app\"}[5m])",
+            "legendFormat": "{{method}} {{uri}} {{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate (%)",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "100 * rate(http_server_requests_seconds_count{application=\"$app\", status=~\"5..\"}[5m]) / rate(http_server_requests_seconds_count{application=\"$app\"}[5m])",
+            "legendFormat": "error rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Latency Percentiles",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{application=\"$app\"}[5m]))",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application=\"$app\"}[5m]))",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{application=\"$app\"}[5m]))",
+            "legendFormat": "p99"
+          }
+        ]
+      },
+      {
+        "title": "JVM Heap Memory",
+        "type": "timeseries",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{area=\"heap\", application=\"$app\"}",
+            "legendFormat": "used"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{area=\"heap\", application=\"$app\"}",
+            "legendFormat": "max"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": { "unit": "bytes" }
+        }
+      },
+      {
+        "title": "JVM Threads",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "jvm_threads_live_threads{application=\"$app\"}",
+            "legendFormat": "live threads"
+          }
+        ]
+      },
+      {
+        "title": "Orders Created / min",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 16 },
+        "targets": [
+          {
+            "expr": "rate(orders_created_total{application=\"$app\"}[5m]) * 60",
+            "legendFormat": "orders/min"
+          }
+        ]
+      },
+      {
+        "title": "Auth Failures / min",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "expr": "rate(auth_failures_total{application=\"$app\"}[5m]) * 60",
+            "legendFormat": "failures/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 5, "color": "yellow" },
+                { "value": 20, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Active Users",
+        "type": "stat",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 16 },
+        "targets": [
+          {
+            "expr": "users_active_current{application=\"$app\"}",
+            "legendFormat": "active"
+          }
+        ]
+      }
+    ],
+    "schemaVersion": 39,
+    "version": 1
+  },
+  "overwrite": true
+}

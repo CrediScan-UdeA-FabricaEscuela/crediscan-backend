@@ -1,0 +1,10 @@
+.git
+.gitignore
+.gradle
+build
+.idea
+*.iml
+.vscode
+.env
+*.md
+docker-compose.yml
