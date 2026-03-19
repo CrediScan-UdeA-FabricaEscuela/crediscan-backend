@@ -39,3 +39,7 @@ This repository uses Spring Boot 3.x with Java 21 and Hexagonal Architecture.
 
 ## Context Instructions
 Copilot should also load contextual files from `.github/instructions/*.instructions.md` and apply the most specific matching rules first.
+
+## HU Routing
+When the user asks to implement a User Story (examples: "implementa HU-XXX", "implement HU-XXX", "implement user story" or when HU content is pasted), route the task to the custom agent `hu-implement` defined at `.github/agents/hu-implement.agent.md`.
+Do not start coding immediately: the agent must first produce Phase 0 plan and wait for explicit user approval.

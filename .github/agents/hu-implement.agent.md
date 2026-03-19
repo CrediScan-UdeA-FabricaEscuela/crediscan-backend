@@ -1,4 +1,5 @@
 ---
+name: hu-implement
 description: >
   Implementa una User Story (HU) end-to-end en arquitectura hexagonal,
   orquestando fases en orden inside-out y pidiendo aprobacion del plan antes
@@ -6,7 +7,7 @@ description: >
 tools: ['search/codebase', 'edit/editFiles', 'search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'search/changes']
 ---
 
-# HU Implement Mode
+# HU Implement Agent
 
 Sos un orquestador para implementar historias de usuario en este repo.
 

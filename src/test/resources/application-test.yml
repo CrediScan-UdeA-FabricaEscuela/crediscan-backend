@@ -1,14 +1,29 @@
 spring:
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///credit_scoring_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     show-sql: false
 
   flyway:
-    enabled: false
+    enabled: true
+    clean-disabled: false
 
 logging:
   level:
     co.udea.codefactory.creditscoring: INFO
     org.springframework: WARN
     org.testcontainers: INFO
+
+app:
+  security:
+    users:
+      analyst:
+        username: analyst
+        password: analyst-secret
+    crypto:
+      encryption-key-base64: MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=
+      hash-key-base64: RkVEQ0JBOTg3NjU0MzIxMEZFRENCQTk4NzY1NDMyMTA=

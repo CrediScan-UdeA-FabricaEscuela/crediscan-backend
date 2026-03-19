@@ -21,6 +21,9 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import co.udea.codefactory.creditscoring.applicant.domain.exception.ApplicantValidationException;
+import co.udea.codefactory.creditscoring.applicant.domain.exception.DuplicateApplicantException;
+
 /**
  * Global exception handler that produces RFC 7807 Problem Detail responses.
  *
@@ -40,7 +43,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request) {
 
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST, "Validation failed");
+            HttpStatus.BAD_REQUEST, "Validation failed");
         problem.setTitle("Validation Error");
         problem.setType(URI.create("https://api.creditscoring.udea.co/errors/validation"));
         problem.setProperty("errorCode", "VALIDATION_FAILED");
@@ -53,6 +56,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                         "message", fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "Invalid value",
                         "rejectedValue", fe.getRejectedValue() != null ? fe.getRejectedValue() : "null"))
                 .toList();
+
+            if (!fieldErrors.isEmpty()) {
+                Object message = fieldErrors.getFirst().get("message");
+                if (message instanceof String detailMessage) {
+                problem.setDetail(detailMessage);
+                }
+            }
         problem.setProperty("details", fieldErrors);
 
         if (request instanceof ServletWebRequest servletRequest) {
@@ -61,6 +71,34 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         log.warn("Validation failed: {} field error(s)", fieldErrors.size());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(ApplicantValidationException.class)
+    public ProblemDetail handleApplicantValidation(ApplicantValidationException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Validation Error");
+        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/validation"));
+        problem.setProperty("errorCode", "VALIDATION_FAILED");
+        problem.setProperty("traceId", MDC.get("traceId"));
+        problem.setProperty("timestamp", Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Applicant validation error: {}", ex.getMessage());
+        return problem;
+    }
+
+    @ExceptionHandler(DuplicateApplicantException.class)
+    public ProblemDetail handleDuplicateApplicant(DuplicateApplicantException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Conflict");
+        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/conflict"));
+        problem.setProperty("errorCode", "DUPLICATE_RESOURCE");
+        problem.setProperty("traceId", MDC.get("traceId"));
+        problem.setProperty("timestamp", Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Duplicate applicant: {}", ex.getMessage());
+        return problem;
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

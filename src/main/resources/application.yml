@@ -52,3 +52,13 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+app:
+  security:
+    users:
+      analyst:
+        username: ${APP_ANALYST_USERNAME}
+        password: ${APP_ANALYST_PASSWORD}
+    crypto:
+      encryption-key-base64: ${APP_CRYPTO_ENCRYPTION_KEY_BASE64}
+      hash-key-base64: ${APP_CRYPTO_HASH_KEY_BASE64}
