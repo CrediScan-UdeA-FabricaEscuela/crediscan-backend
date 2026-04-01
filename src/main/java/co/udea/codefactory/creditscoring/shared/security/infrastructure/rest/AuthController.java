@@ -1,0 +1,59 @@
+package co.udea.codefactory.creditscoring.shared.security.infrastructure.rest;
+
+import java.util.UUID;
+
+import jakarta.validation.Valid;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import co.udea.codefactory.creditscoring.shared.security.domain.model.AuthResult;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.in.AuthenticateUseCase;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.in.ChangeUserRoleUseCase;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.ChangeRoleRequest;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.LoginRequest;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.LoginResponse;
+
+@RestController
+@RequestMapping("/api/v1/auth")
+@Tag(name = "Auth", description = "Autenticación y gestión de usuarios")
+public class AuthController {
+
+    private final AuthenticateUseCase authenticateUseCase;
+    private final ChangeUserRoleUseCase changeUserRoleUseCase;
+
+    public AuthController(
+            AuthenticateUseCase authenticateUseCase,
+            ChangeUserRoleUseCase changeUserRoleUseCase) {
+        this.authenticateUseCase = authenticateUseCase;
+        this.changeUserRoleUseCase = changeUserRoleUseCase;
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "Iniciar sesión", description = "Autenticar usuario y obtener JWT")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResult result = authenticateUseCase.authenticate(request.username(), request.password());
+        return ResponseEntity.ok(new LoginResponse(result.token(), result.role(), result.expiresAt()));
+    }
+
+    @PatchMapping("/usuarios/{id}/rol")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Cambiar rol de usuario", description = "Solo ADMIN puede cambiar roles")
+    public ResponseEntity<Void> changeRole(
+            @PathVariable UUID id,
+            @Valid @RequestBody ChangeRoleRequest request,
+            Authentication authentication) {
+        changeUserRoleUseCase.changeRole(id, request.rol(), authentication.getName());
+        return ResponseEntity.ok().build();
+    }
+}

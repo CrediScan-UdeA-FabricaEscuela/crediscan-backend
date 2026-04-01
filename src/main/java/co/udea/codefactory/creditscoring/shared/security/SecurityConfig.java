@@ -1,53 +1,71 @@
 package co.udea.codefactory.creditscoring.shared.security;
 
-import java.io.IOException;
-import java.time.Instant;
-import java.util.Map;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpStatus;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtAuthenticationFilter;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtProperties;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtService;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.persistence.JpaUserDetailsService;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenBlacklistPort;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final ObjectMapper objectMapper;
+    private final JpaUserDetailsService userDetailsService;
+    private final JwtService jwtService;
+    private final AppUserRepositoryPort userRepository;
+    private final TokenBlacklistPort tokenBlacklist;
 
-    public SecurityConfig(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public SecurityConfig(
+            JpaUserDetailsService userDetailsService,
+            JwtService jwtService,
+            AppUserRepositoryPort userRepository,
+            TokenBlacklistPort tokenBlacklist) {
+        this.userDetailsService = userDetailsService;
+        this.jwtService = jwtService;
+        this.userRepository = userRepository;
+        this.tokenBlacklist = tokenBlacklist;
     }
 
     @Bean
-    public UserDetailsService userDetailsService(
-            org.springframework.core.env.Environment environment) {
-        String username = environment.getRequiredProperty("app.security.users.analyst.username");
-        String password = environment.getRequiredProperty("app.security.users.analyst.password");
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-        UserDetails analyst = User.withUsername(username)
-                .password("{noop}" + password)
-                .roles("ANALISTA_CREDITO")
-                .build();
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
 
-        return new InMemoryUserDetailsManager(analyst);
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(jwtService, userRepository, tokenBlacklist);
     }
 
     @Bean
@@ -56,48 +74,17 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .httpBasic(Customizer.withDefaults())
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        // Public endpoints
+                        .requestMatchers("/api/v1/auth/login").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers("/api/v1/solicitantes").hasRole("ANALISTA_CREDITO")
-                        .anyRequest().denyAll())
+                        .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // All other requests require authentication — fine-grained via @PreAuthorize
+                        .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) ->
-                                writeProblemDetail(request, response,
-                                        HttpStatus.UNAUTHORIZED,
-                                        "Unauthorized",
-                                        "Autenticacion requerida para acceder al recurso",
-                                        "UNAUTHORIZED"))
-                        .accessDeniedHandler((request, response, accessDeniedException) ->
-                                writeProblemDetail(request, response,
-                                        HttpStatus.FORBIDDEN,
-                                        "Access Denied",
-                                        "You do not have permission to access this resource",
-                                        "ACCESS_DENIED")))
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .build();
-    }
-
-    private void writeProblemDetail(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            HttpStatus status,
-            String title,
-            String detail,
-            String errorCode) throws IOException {
-
-        response.setStatus(status.value());
-        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-
-        Map<String, Object> payload = Map.of(
-                "type", "https://api.creditscoring.udea.co/errors/" + errorCode.toLowerCase().replace('_', '-'),
-                "title", title,
-                "status", status.value(),
-                "detail", detail,
-                "path", request.getRequestURI(),
-                "timestamp", Instant.now().toString(),
-                "traceId", MDC.get("traceId"),
-                "errorCode", errorCode);
-
-        objectMapper.writeValue(response.getOutputStream(), payload);
     }
 }

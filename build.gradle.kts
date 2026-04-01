@@ -25,6 +25,7 @@ repositories {
     mavenCentral()
 }
 
+val jjwtVersion = "0.12.6"
 val mapstructVersion = "1.6.3"
 val springdocVersion = "2.8.4"
 val logstashEncoderVersion = "8.0"
@@ -48,6 +49,11 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
+
+    // JWT
+    implementation("io.jsonwebtoken:jjwt-api:$jjwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:$jjwtVersion")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:$jjwtVersion")
 
     // Mapping
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
@@ -115,4 +121,10 @@ sonarqube {
         property("sonar.java.coveragePlugin", "jacoco")
         property("sonar.coverage.jacoco.xmlReportPaths", "${layout.buildDirectory}/reports/jacoco/test/jacocoTestReport.xml")
     }
+}
+
+tasks.withType<Test> {
+    environment("DOCKER_HOST", "unix:///mnt/wsl/docker-desktop-bind-mounts/Ubuntu-24.04/docker.sock")
+    environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+    systemProperty("api.version", "1.41")
 }

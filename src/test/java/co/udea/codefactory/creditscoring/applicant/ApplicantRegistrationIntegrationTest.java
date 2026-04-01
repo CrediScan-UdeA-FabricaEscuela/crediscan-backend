@@ -1,7 +1,6 @@
 package co.udea.codefactory.creditscoring.applicant;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -28,8 +27,8 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
-        "app.security.users.analyst.username=analyst",
-        "app.security.users.analyst.password=analyst-secret",
+        "app.security.jwt.secret=dGVzdFNlY3JldEtleUZvckp3dDAxMjM0NTY3ODlBQkNERUY=",
+        "app.security.jwt.expiration-ms=3600000",
         "app.security.crypto.encryption-key-base64=MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=",
         "app.security.crypto.hash-key-base64=RkVEQ0JBOTg3NjU0MzIxMEZFRENCQTk4NzY1NDMyMTA="
 })
@@ -52,7 +51,7 @@ class ApplicantRegistrationIntegrationTest {
     @Test
     void shouldRegisterApplicantSuccessfullyAndStoreEncryptedIdentification() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequest("1017234567", "Empleado", "1990-05-15", 3500000, 36)))
                 .andExpect(status().isCreated())
@@ -93,7 +92,7 @@ class ApplicantRegistrationIntegrationTest {
                 """;
 
         mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
@@ -105,13 +104,13 @@ class ApplicantRegistrationIntegrationTest {
         String payload = validRequest("1017234567", "Empleado", "1990-05-15", 3500000, 36);
 
         mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isConflict())
@@ -122,7 +121,7 @@ class ApplicantRegistrationIntegrationTest {
     @Test
     void shouldReturnBadRequestWhenMonthlyIncomeIsZero() throws Exception {
         mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequest("1017234567", "Empleado", "1990-05-15", 0, 36)))
                 .andExpect(status().isBadRequest())
@@ -133,7 +132,7 @@ class ApplicantRegistrationIntegrationTest {
     @Test
     void shouldReturnBadRequestWhenMonthlyIncomeIsNegative() throws Exception {
         mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequest("1017234567", "Empleado", "1990-05-15", -500000, 36)))
                 .andExpect(status().isBadRequest())
@@ -144,7 +143,7 @@ class ApplicantRegistrationIntegrationTest {
     @Test
     void shouldReturnBadRequestWhenApplicantIsUnderAge() throws Exception {
         mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequest("1017234567", "Empleado", "2010-03-17", 3500000, 36)))
                 .andExpect(status().isBadRequest())
@@ -154,7 +153,7 @@ class ApplicantRegistrationIntegrationTest {
     @Test
     void shouldReturnBadRequestWhenEmploymentTypeIsInvalid() throws Exception {
         mockMvc.perform(post("/api/v1/solicitantes")
-                        .with(httpBasic("analyst", "analyst-secret"))
+                        .with(user("analyst").roles("ANALYST"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequest("1017234567", "Freelancer", "1990-05-15", 3500000, 36)))
                 .andExpect(status().isBadRequest())

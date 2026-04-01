@@ -39,7 +39,7 @@ public class ApplicantController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ANALISTA_CREDITO')")
+    @PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")
     @Operation(summary = "Registrar solicitante", description = "Registra un solicitante de credito")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Solicitante registrado"),

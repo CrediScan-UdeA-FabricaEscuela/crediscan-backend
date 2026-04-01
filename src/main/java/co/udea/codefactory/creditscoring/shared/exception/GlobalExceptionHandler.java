@@ -23,6 +23,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import co.udea.codefactory.creditscoring.applicant.domain.exception.ApplicantValidationException;
 import co.udea.codefactory.creditscoring.applicant.domain.exception.DuplicateApplicantException;
+import co.udea.codefactory.creditscoring.shared.security.domain.exception.InvalidCredentialsException;
+import co.udea.codefactory.creditscoring.shared.security.domain.exception.LastAdminException;
 
 /**
  * Global exception handler that produces RFC 7807 Problem Detail responses.
@@ -119,15 +121,47 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.FORBIDDEN, "You do not have permission to access this resource");
+                HttpStatus.FORBIDDEN, "No tiene permisos para acceder a este recurso");
         problem.setTitle("Access Denied");
         problem.setType(URI.create("https://api.creditscoring.udea.co/errors/forbidden"));
         problem.setProperty("errorCode", "ACCESS_DENIED");
+        problem.setProperty("message", "No tiene permisos para acceder a este recurso");
         problem.setProperty("traceId", MDC.get("traceId"));
         problem.setProperty("timestamp", Instant.now().toString());
         enrichWithPath(problem, request);
 
         log.warn("Access denied: {}", ex.getMessage());
+        return problem;
+    }
+
+    @ExceptionHandler(LastAdminException.class)
+    public ProblemDetail handleLastAdmin(LastAdminException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Conflict");
+        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/last-admin"));
+        problem.setProperty("errorCode", "LAST_ADMIN");
+        problem.setProperty("message", ex.getMessage());
+        problem.setProperty("traceId", MDC.get("traceId"));
+        problem.setProperty("timestamp", Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Last admin protection triggered: {}", ex.getMessage());
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNAUTHORIZED, ex.getMessage());
+        problem.setTitle("Unauthorized");
+        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/unauthorized"));
+        problem.setProperty("errorCode", "INVALID_CREDENTIALS");
+        problem.setProperty("traceId", MDC.get("traceId"));
+        problem.setProperty("timestamp", Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Invalid credentials attempt");
         return problem;
     }
 
