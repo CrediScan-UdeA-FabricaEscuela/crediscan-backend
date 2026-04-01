@@ -121,40 +121,55 @@ co.udea.codefactory.creditscoring/
 ├── applicant/                          ← Bounded context: Solicitantes
 │   ├── domain/
 │   │   ├── model/
-│   │   │   ├── Applicant.java          ← Record inmutable (value object)
+│   │   │   ├── Applicant.java          ← Record inmutable (value object); incluye phone
 │   │   │   └── EmploymentType.java     ← Enum con factory method fromApiValue()
 │   │   ├── port/
 │   │   │   ├── in/
-│   │   │   │   └── RegisterApplicantUseCase.java
+│   │   │   │   ├── RegisterApplicantUseCase.java
+│   │   │   │   ├── SearchApplicantUseCase.java
+│   │   │   │   └── UpdateApplicantUseCase.java
 │   │   │   └── out/
-│   │   │       ├── ApplicantRepositoryPort.java
-│   │   │       ├── IdentificationCryptoPort.java
+│   │   │       ├── ApplicantRepositoryPort.java       ← save, findById, search, findAll, update
+│   │   │       ├── IdentificationCryptoPort.java      ← hash, encrypt, decrypt
+│   │   │       ├── ApplicantEditAuditPort.java
 │   │   │       └── ApplicantRegistrationMetricsPort.java
 │   │   └── exception/
 │   │       ├── ApplicantValidationException.java
-│   │       └── DuplicateApplicantException.java
+│   │       ├── DuplicateApplicantException.java
+│   │       └── ImmutableFieldException.java          ← Cuando se intenta editar id o fecha_nacimiento
 │   ├── application/
 │   │   ├── dto/
-│   │   │   └── RegisterApplicantCommand.java    ← Record (input del use case)
+│   │   │   ├── RegisterApplicantCommand.java
+│   │   │   ├── ApplicantSummary.java               ← Resultado de búsqueda (identificación en plano)
+│   │   │   ├── UpdateApplicantCommand.java          ← Campos nullable; null = sin cambio
+│   │   │   └── UpdateApplicantResult.java           ← applicant + changedFields
 │   │   └── service/
-│   │       └── RegisterApplicantService.java
+│   │       ├── RegisterApplicantService.java
+│   │       ├── SearchApplicantService.java
+│   │       └── UpdateApplicantService.java
 │   └── infrastructure/
 │       └── adapter/
 │           ├── in/rest/
 │           │   ├── ApplicantController.java
-│           │   ├── ApplicantRestMapper.java      ← MapStruct
+│           │   ├── ApplicantRestMapper.java
 │           │   └── dto/
 │           │       ├── RegisterApplicantRequest.java
-│           │       ├── ApplicantResponse.java
-│           │       └── RegisterApplicantResponse.java
+│           │       ├── RegisterApplicantResponse.java
+│           │       ├── ApplicantResponse.java         ← Incluye telefono
+│           │       ├── ApplicantSearchResponse.java   ← Respuesta de GET /solicitantes
+│           │       ├── UpdateApplicantRequest.java    ← Campos nullable
+│           │       └── UpdateApplicantResponse.java   ← Incluye campos_auditados
 │           └── out/
 │               ├── persistence/
-│               │   ├── ApplicantJpaEntity.java
-│               │   ├── JpaApplicantRepository.java   ← Spring Data JPA (package-private)
-│               │   └── ApplicantRepositoryAdapter.java
+│               │   ├── ApplicantJpaEntity.java                ← Incluye phone
+│               │   ├── JpaApplicantRepository.java            ← Query searchByHashOrName
+│               │   ├── ApplicantRepositoryAdapter.java        ← Incluye decrypt en read paths
+│               │   ├── ApplicantEditAuditJpaEntity.java
+│               │   ├── JpaApplicantEditAuditRepository.java
+│               │   └── ApplicantEditAuditAdapter.java
 │               ├── crypto/
 │               │   ├── CryptoProperties.java
-│               │   └── IdentificationCryptoAdapter.java
+│               │   └── IdentificationCryptoAdapter.java       ← Incluye decrypt()
 │               └── metrics/
 │                   └── ApplicantRegistrationMetricsAdapter.java
 │
@@ -245,7 +260,7 @@ El sistema está dividido en contextos de negocio independientes. Cada uno tiene
 
 ### ✅ APPLICANT — Completamente implementado
 
-Registro y gestión de solicitantes de crédito.
+Registro, búsqueda y edición de solicitantes de crédito.
 
 **Modelos clave:**
 
@@ -253,14 +268,16 @@ Registro y gestión de solicitantes de crédito.
 // Applicant es un record inmutable con validaciones en los factory methods
 public record Applicant(UUID id, String name, String identification,
                         LocalDate birthDate, EmploymentType employmentType,
-                        BigDecimal monthlyIncome, Integer workExperienceMonths)
+                        BigDecimal monthlyIncome, Integer workExperienceMonths,
+                        String phone)
 
-// Reglas de negocio aplicadas en registerNew():
+// Reglas de negocio aplicadas en registerNew() y rehydrate():
 // - nombre obligatorio
 // - identificación obligatoria y única (chequeada via hash en BD)
 // - edad >= 18 años
 // - ingresos mensuales > 0
 // - experiencia laboral >= 0
+// - teléfono opcional, máx 20 caracteres
 ```
 
 **Flujo de registro:**
@@ -272,7 +289,26 @@ public record Applicant(UUID id, String name, String identification,
 6. Persiste el aplicante con el ID encriptado y el hash
 7. Registra métrica de éxito
 
-**Seguridad:** `@PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")`
+**Flujo de búsqueda (GET /api/v1/solicitantes):**
+1. Controller recibe `q` (opcional) y parámetros de paginación
+2. `SearchApplicantService`: si `q` es null/blank → `findAll(pageable)`; si tiene valor → hashea `q` con HMAC y construye patrón `%q%` para nombre
+3. Repositorio ejecuta JPQL: `WHERE identification_hash = :hash OR LOWER(name) LIKE LOWER(:nameCriteria)`
+4. `ApplicantRepositoryAdapter.toSummary()` desencripta `identification_encrypted` → `ApplicantSummary` con identificación en texto plano
+5. Retorna `Page<ApplicantSearchResponse>` con paginación estándar Spring (`page`, `size`, `totalElements`)
+
+**Flujo de edición (PATCH /api/v1/solicitantes/{id}):**
+1. Controller recibe `UpdateApplicantRequest` (todos los campos nullable) y `Authentication` para obtener el actor
+2. `UpdateApplicantService` valida que `identificacion` y `fecha_nacimiento` sean null (inmutables → `ImmutableFieldException` si no)
+3. Carga el aplicante existente via `findById` (desencripta identificación para rehydrate)
+4. Por cada campo presente en el command: compara contra el valor actual; si cambió → llama `ApplicantEditAuditPort.saveEditAudit()`
+5. Construye nuevo `Applicant` via `rehydrate()` con valores merged (dominio valida ingresos negativos, etc.)
+6. Persiste via `update()` y retorna `UpdateApplicantResult(applicant, changedFields)`
+7. Response incluye `campos_auditados` (lista de nombres de campo que cambiaron)
+
+**Seguridades:**
+- Registro: `@PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")`
+- Búsqueda: `@PreAuthorize("hasRole('ANALYST') or hasRole('RISK_MANAGER') or hasRole('ADMIN') or hasRole('CREDIT_SUPERVISOR')")`
+- Edición: `@PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")`
 
 ---
 
@@ -330,8 +366,8 @@ El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resou
 
 ### Tablas por migración
 
-| Migración | Tablas |
-|-----------|--------|
+| Migración | Cambios |
+|-----------|---------|
 | V2 | `applicant` |
 | V3 | Extensiones PostgreSQL (pgcrypto, uuid-ossp) |
 | V4 | `app_user`, `role_permission` |
@@ -347,6 +383,8 @@ El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resou
 | V14 | Stored procedures y vistas |
 | V15 | Seed data (usuario admin + matriz de permisos) |
 | V16 | Reemplaza rol AUDITOR → CREDIT_SUPERVISOR |
+| V17 | Simplifica PK de `audit_log`; agrega `created_by`/`updated_by` a `token_blacklist` |
+| V18 | Columna `phone` en `applicant`; permiso `ANALYST APPLICANT UPDATE` en `role_permission` |
 
 ### Convenciones de la BD
 
@@ -367,6 +405,7 @@ birth_date DATE NOT NULL
 employment_type VARCHAR(30) NOT NULL
 monthly_income NUMERIC(19,2) NOT NULL
 work_experience_months INTEGER NOT NULL
+phone VARCHAR(20) NULL                            -- agregado en V18
 created_at TIMESTAMP WITH TIME ZONE NOT NULL
 created_by VARCHAR(100) NOT NULL
 updated_at TIMESTAMP WITH TIME ZONE
@@ -481,7 +520,11 @@ APP_CRYPTO_HASH_KEY_BASE64=<HMAC key en base64, 32 bytes>
 | Método | Path | Roles permitidos | Estado |
 |--------|------|-----------------|--------|
 | POST | `/api/v1/solicitantes` | ANALYST, ADMIN | ✅ |
+| GET | `/api/v1/solicitantes` | ANALYST, RISK_MANAGER, ADMIN, CREDIT_SUPERVISOR | ✅ |
+| PATCH | `/api/v1/solicitantes/{id}` | ANALYST, ADMIN | ✅ |
+| POST | `/api/v1/auth/usuarios` | ADMIN | ✅ |
 | PATCH | `/api/v1/auth/usuarios/{id}/rol` | ADMIN | ✅ |
+| POST | `/api/v1/auth/login` | público | ✅ |
 | GET | `/api/v1/evaluaciones` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | ⏳ stub |
 | POST | `/api/v1/evaluaciones` | ADMIN, ANALYST | ⏳ stub |
 | GET | `/api/v1/reportes/distribución` | ADMIN, RISK_MANAGER | ⏳ stub |
@@ -508,16 +551,18 @@ Todos los errores siguen **RFC 7807 (Problem Details)**. La respuesta siempre ti
 
 ### Mapa de excepciones → HTTP
 
-| Excepción | HTTP | Cuándo ocurre |
-|-----------|------|---------------|
-| `ApplicantValidationException` | 400 | Datos inválidos del solicitante |
-| `MethodArgumentNotValidException` | 400 | Falla en `@Valid` de la request |
-| `InvalidCredentialsException` | 401 | Login fallido |
-| `ResourceNotFoundException` | 404 | Entidad no encontrada por ID |
-| `DuplicateApplicantException` | 409 | Identificación ya registrada |
-| `LastAdminException` | 409 | Intento de quitar el único admin |
-| `AccessDeniedException` | 403 | Rol insuficiente (`@PreAuthorize`) |
-| `Exception` (genérico) | 500 | Error no esperado |
+| Excepción | HTTP | `errorCode` | Cuándo ocurre |
+|-----------|------|-------------|---------------|
+| `ApplicantValidationException` | 400 | `VALIDATION_FAILED` | Datos inválidos del solicitante |
+| `ImmutableFieldException` | 400 | `IMMUTABLE_FIELD` | Intento de editar `identificacion` o `fecha_nacimiento` |
+| `MethodArgumentNotValidException` | 400 | `VALIDATION_FAILED` | Falla en `@Valid` de la request |
+| `InvalidCredentialsException` | 401 | `INVALID_CREDENTIALS` | Login fallido |
+| `AccessDeniedException` | 403 | `ACCESS_DENIED` | Rol insuficiente (`@PreAuthorize`) |
+| `ResourceNotFoundException` | 404 | `RESOURCE_NOT_FOUND` | Entidad no encontrada por ID |
+| `DuplicateApplicantException` | 409 | `DUPLICATE_RESOURCE` | Identificación ya registrada |
+| `DuplicateUserException` | 409 | `DUPLICATE_USER` | Username/email ya registrado |
+| `LastAdminException` | 409 | `LAST_ADMIN` | Intento de quitar el único admin |
+| `Exception` (genérico) | 500 | `INTERNAL_ERROR` | Error no esperado |
 
 El handler global está en `GlobalExceptionHandler.java`.
 
@@ -530,7 +575,16 @@ Los tests están en `src/test/java/` organizados en tres niveles:
 ```
 test/
 ├── applicant/
-│   └── ApplicantRegistrationIntegrationTest.java    ← IT con BD real
+│   ├── ApplicantRegistrationIntegrationTest.java    ← IT con BD real (registro)
+│   ├── SearchApplicantIntegrationTest.java          ← IT: AC-01 a AC-05 + roles (GET)
+│   ├── UpdateApplicantIntegrationTest.java          ← IT: AC-06 a AC-09 + 404 (PATCH)
+│   ├── application/service/
+│   │   ├── SearchApplicantServiceTest.java          ← Unit: hash, LIKE, paginación
+│   │   └── UpdateApplicantServiceTest.java          ← Unit: inmutables, auditoría, happy path
+│   ├── domain/model/
+│   │   └── ApplicantTest.java                      ← Unit: phone field, registerNew, rehydrate
+│   └── migration/
+│       └── V18MigrationTest.java                   ← Verifica columna phone + permiso ANALYST
 └── shared/security/
     ├── acceptance/
     │   ├── AuthLoginAT.java                          ← Cucumber / REST Assured
@@ -542,6 +596,7 @@ test/
     │   ├── JwtServiceTest.java
     │   └── JwtAuthenticationFilterTest.java
     ├── integration/
+    │   ├── CreateUserIntegrationTest.java
     │   ├── LastAdminProtectionIT.java
     │   ├── SecurityFilterChainIT.java
     │   └── TokenBlacklistFlowIT.java
@@ -805,4 +860,4 @@ Disponibles en `/actuator/prometheus`. Métricas custom:
 
 ---
 
-*Última actualización: Marzo 31 2026*
+*Última actualización: Abril 1 2026*
