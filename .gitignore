@@ -39,3 +39,7 @@ logs/
 
 # Test output
 test-output/
+
+# Claude Code internals
+.claude/worktrees/
+.atl/

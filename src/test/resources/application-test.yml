@@ -20,10 +20,9 @@ logging:
 
 app:
   security:
-    users:
-      analyst:
-        username: analyst
-        password: analyst-secret
+    jwt:
+      secret: dGVzdFNlY3JldEtleUZvckp3dDAxMjM0NTY3ODlBQkNERUY=
+      expiration-ms: 3600000
     crypto:
       encryption-key-base64: MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=
       hash-key-base64: RkVEQ0JBOTg3NjU0MzIxMEZFRENCQTk4NzY1NDMyMTA=
