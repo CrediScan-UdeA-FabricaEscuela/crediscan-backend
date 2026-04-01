@@ -6,25 +6,18 @@ import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * JPA entity for the partitioned audit_log table.
- * The table uses a composite primary key (id, created_at) due to pg_partman range partitioning.
- */
 @Entity
 @Table(name = "audit_log")
-@IdClass(AuditLogId.class)
 public class JpaAuditLogEntity {
 
     @Id
     private UUID id;
 
-    @Id
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
