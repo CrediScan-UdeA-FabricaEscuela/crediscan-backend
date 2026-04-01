@@ -2,14 +2,14 @@ package co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.re
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record ApplicantResponse(
-        @JsonProperty("id")
-        UUID id,
-
+/**
+ * PATCH request body. All fields nullable — PATCH semantics.
+ * If identification or birthDate are non-null, the service returns 400 IMMUTABLE_FIELD.
+ */
+public record UpdateApplicantRequest(
         @JsonProperty("nombre")
         String name,
 

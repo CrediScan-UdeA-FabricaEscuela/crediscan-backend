@@ -23,6 +23,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import co.udea.codefactory.creditscoring.applicant.domain.exception.ApplicantValidationException;
 import co.udea.codefactory.creditscoring.applicant.domain.exception.DuplicateApplicantException;
+import co.udea.codefactory.creditscoring.applicant.domain.exception.ImmutableFieldException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.DuplicateUserException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.InvalidCredentialsException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.LastAdminException;
@@ -74,6 +75,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         log.warn("Validation failed: {} field error(s)", fieldErrors.size());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(ImmutableFieldException.class)
+    public ProblemDetail handleImmutableField(ImmutableFieldException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Validation Error");
+        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/immutable-field"));
+        problem.setProperty("errorCode", "IMMUTABLE_FIELD");
+        problem.setProperty("traceId", MDC.get("traceId"));
+        problem.setProperty("timestamp", Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Immutable field edit attempt: {}", ex.getFieldName());
+        return problem;
     }
 
     @ExceptionHandler(ApplicantValidationException.class)

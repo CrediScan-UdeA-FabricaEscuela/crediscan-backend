@@ -4,9 +4,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record ApplicantResponse(
+/**
+ * Single item in search results. Contains decrypted identification (plaintext).
+ */
+public record ApplicantSearchResponse(
         @JsonProperty("id")
         UUID id,
 
@@ -29,5 +33,6 @@ public record ApplicantResponse(
         Integer workExperienceMonths,
 
         @JsonProperty("telefono")
+        @JsonInclude(JsonInclude.Include.ALWAYS)
         String phone) {
 }

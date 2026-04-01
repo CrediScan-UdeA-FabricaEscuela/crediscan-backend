@@ -56,6 +56,7 @@ public class RegisterApplicantService implements RegisterApplicantUseCase {
                     employmentType,
                     command.monthlyIncome(),
                     command.workExperienceMonths(),
+                    null,
                     clock);
 
             String identificationHash = identificationCryptoPort.hash(applicant.identification());
