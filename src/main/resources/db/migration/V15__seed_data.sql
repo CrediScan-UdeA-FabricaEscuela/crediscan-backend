@@ -10,7 +10,7 @@ VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'admin',
     'admin@creditscoring.local',
-    '$2a$10$dXJ3SW6G7P50lGmMQoeVhOaLM0d3Rg0Xi6eP8MhiH9LGXBFBbLQiW',
+    '$2b$10$M9iOui2lOmxCn.oWiyvV.OB3Jg/8TfW9VUze0ksxBzyl7ocA02NwW',
     'ADMIN',
     true,
     NOW(),
