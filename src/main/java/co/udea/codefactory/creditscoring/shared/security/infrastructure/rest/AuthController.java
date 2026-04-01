@@ -1,5 +1,6 @@
 package co.udea.codefactory.creditscoring.shared.security.infrastructure.rest;
 
+import java.net.URI;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -17,10 +18,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuthResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.AuthenticateUseCase;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.ChangeUserRoleUseCase;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.in.CreateUserUseCase;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.ChangeRoleRequest;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.CreateUserRequest;
+import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.CreateUserResponse;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.LoginRequest;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.LoginResponse;
 
@@ -31,12 +36,15 @@ public class AuthController {
 
     private final AuthenticateUseCase authenticateUseCase;
     private final ChangeUserRoleUseCase changeUserRoleUseCase;
+    private final CreateUserUseCase createUserUseCase;
 
     public AuthController(
             AuthenticateUseCase authenticateUseCase,
-            ChangeUserRoleUseCase changeUserRoleUseCase) {
+            ChangeUserRoleUseCase changeUserRoleUseCase,
+            CreateUserUseCase createUserUseCase) {
         this.authenticateUseCase = authenticateUseCase;
         this.changeUserRoleUseCase = changeUserRoleUseCase;
+        this.createUserUseCase = createUserUseCase;
     }
 
     @PostMapping("/login")
@@ -44,6 +52,23 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResult result = authenticateUseCase.authenticate(request.username(), request.password());
         return ResponseEntity.ok(new LoginResponse(result.token(), result.role(), result.expiresAt()));
+    }
+
+    @PostMapping("/usuarios")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Crear usuario", description = "Solo ADMIN puede crear usuarios")
+    public ResponseEntity<CreateUserResponse> createUser(
+            @Valid @RequestBody CreateUserRequest request,
+            Authentication authentication) {
+        AppUser created = createUserUseCase.create(
+                request.username(),
+                request.email(),
+                request.password(),
+                request.rol(),
+                authentication.getName());
+        URI location = URI.create("/api/v1/auth/usuarios/" + created.id());
+        return ResponseEntity.created(location)
+                .body(new CreateUserResponse(created.id(), created.username(), created.email(), created.role()));
     }
 
     @PatchMapping("/usuarios/{id}/rol")
