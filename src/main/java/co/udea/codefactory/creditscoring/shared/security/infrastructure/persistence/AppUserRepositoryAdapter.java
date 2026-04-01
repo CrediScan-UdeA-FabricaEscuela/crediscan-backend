@@ -1,5 +1,6 @@
 package co.udea.codefactory.creditscoring.shared.security.infrastructure.persistence;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,6 +31,17 @@ public class AppUserRepositoryAdapter implements AppUserRepositoryPort {
     }
 
     @Override
+    public Optional<AppUser> findByEmail(String email) {
+        return jpaRepository.findByEmail(email).map(this::toDomain);
+    }
+
+    @Override
+    public AppUser save(AppUser user, String actor) {
+        JpaAppUserEntity entity = toEntity(user, actor);
+        return toDomain(jpaRepository.save(entity));
+    }
+
+    @Override
     public long countByRole(Role role) {
         return jpaRepository.countByRole(role);
     }
@@ -49,5 +61,21 @@ public class AppUserRepositoryAdapter implements AppUserRepositoryPort {
                 entity.getRole(),
                 entity.isEnabled(),
                 entity.isAccountLocked());
+    }
+
+    private JpaAppUserEntity toEntity(AppUser user, String actor) {
+        JpaAppUserEntity entity = new JpaAppUserEntity();
+        entity.setId(user.id());
+        entity.setUsername(user.username());
+        entity.setEmail(user.email());
+        entity.setPasswordHash(user.passwordHash());
+        entity.setRole(user.role());
+        entity.setEnabled(user.enabled());
+        entity.setAccountLocked(user.accountLocked());
+        entity.setFailedLoginAttempts(0);
+        entity.setPasswordChangedAt(Instant.now());
+        entity.setCreatedAt(Instant.now());
+        entity.setCreatedBy(actor);
+        return entity;
     }
 }

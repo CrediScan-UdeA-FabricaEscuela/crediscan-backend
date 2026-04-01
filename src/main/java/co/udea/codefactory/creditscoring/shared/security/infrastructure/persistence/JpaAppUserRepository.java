@@ -14,6 +14,8 @@ public interface JpaAppUserRepository extends JpaRepository<JpaAppUserEntity, UU
 
     Optional<JpaAppUserEntity> findByUsername(String username);
 
+    Optional<JpaAppUserEntity> findByEmail(String email);
+
     long countByRole(Role role);
 
     @Modifying

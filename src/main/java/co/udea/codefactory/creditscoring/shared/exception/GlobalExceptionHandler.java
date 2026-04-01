@@ -23,6 +23,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import co.udea.codefactory.creditscoring.applicant.domain.exception.ApplicantValidationException;
 import co.udea.codefactory.creditscoring.applicant.domain.exception.DuplicateApplicantException;
+import co.udea.codefactory.creditscoring.shared.security.domain.exception.DuplicateUserException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.InvalidCredentialsException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.LastAdminException;
 
@@ -147,6 +148,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         enrichWithPath(problem, request);
 
         log.warn("Last admin protection triggered: {}", ex.getMessage());
+        return problem;
+    }
+
+    @ExceptionHandler(DuplicateUserException.class)
+    public ProblemDetail handleDuplicateUser(DuplicateUserException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Conflict");
+        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/duplicate-user"));
+        problem.setProperty("errorCode", "DUPLICATE_USER");
+        problem.setProperty("traceId", MDC.get("traceId"));
+        problem.setProperty("timestamp", Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Duplicate user: {}", ex.getMessage());
         return problem;
     }
 
