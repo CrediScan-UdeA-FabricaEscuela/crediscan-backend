@@ -11,6 +11,10 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-credit_scoring}
       DB_USERNAME: ${DB_USERNAME:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      APP_JWT_SECRET: ${APP_JWT_SECRET}
+      APP_JWT_EXPIRATION_MS: ${APP_JWT_EXPIRATION_MS:-86400000}
+      APP_CRYPTO_ENCRYPTION_KEY_BASE64: ${APP_CRYPTO_ENCRYPTION_KEY_BASE64}
+      APP_CRYPTO_HASH_KEY_BASE64: ${APP_CRYPTO_HASH_KEY_BASE64}
     depends_on:
       postgres:
         condition: service_healthy

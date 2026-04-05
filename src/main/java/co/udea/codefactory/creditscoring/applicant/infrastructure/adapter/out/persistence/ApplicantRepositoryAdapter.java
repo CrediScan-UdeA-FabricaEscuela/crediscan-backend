@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import co.udea.codefactory.creditscoring.applicant.application.dto.ApplicantSummary;
@@ -25,6 +26,7 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
     private final IdentificationCryptoPort identificationCryptoPort;
     private final Clock clock;
 
+    @Autowired
     public ApplicantRepositoryAdapter(
             JpaApplicantRepository jpaRepository,
             IdentificationCryptoPort identificationCryptoPort) {

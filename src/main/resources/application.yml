@@ -28,6 +28,12 @@ spring:
     problemdetails:
       enabled: true
 
+  # Page serialization: nested "page" object format (Spring Data 3.3+)
+  data:
+    web:
+      pageable:
+        serialization-mode: via-dto
+
 # Springdoc / OpenAPI
 springdoc:
   api-docs:

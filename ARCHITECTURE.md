@@ -638,18 +638,57 @@ Los tests corren con `@ActiveProfiles("test")` que activa:
 
 ## 10. Configuración
 
-### Variables de entorno (producción)
+### Ejecución con Docker (recomendado para desarrollo)
 
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `APP_JWT_SECRET` | Secret para firmar JWT (base64) | `dGVzdFNlY3JldA==` |
+El proyecto incluye `Dockerfile` y `docker-compose.yml` listos para usar.
+
+```bash
+# 1. Copiar el archivo de variables de entorno
+cp .env.example .env
+
+# 2. Levantar la app + PostgreSQL
+docker compose up --build -d
+
+# 3. Verificar que todo esté corriendo
+curl http://localhost:8080/actuator/health
+# → {"status":"UP"}
+
+# 4. Swagger UI disponible en:
+# http://localhost:8080/swagger-ui.html
+```
+
+El `.env.example` incluye valores de desarrollo listos para usar. Para staging/producción, reemplazar con secretos reales.
+
+```bash
+# Bajar los contenedores
+docker compose down
+
+# Bajar y borrar la base de datos (volumen)
+docker compose down -v
+```
+
+### Variables de entorno
+
+| Variable | Descripción | Default en .env.example |
+|----------|-------------|-------------------------|
+| `APP_JWT_SECRET` | Secret para firmar JWT (base64, ≥32 bytes) | valor de desarrollo |
 | `APP_JWT_EXPIRATION_MS` | Duración del token en ms | `86400000` (1 día) |
-| `APP_CRYPTO_ENCRYPTION_KEY_BASE64` | Clave AES-256 para encriptar (32 bytes, base64) | |
-| `APP_CRYPTO_HASH_KEY_BASE64` | Clave HMAC-SHA256 (32 bytes, base64) | |
+| `APP_CRYPTO_ENCRYPTION_KEY_BASE64` | Clave AES-256 para encriptar (32 bytes, base64) | valor de desarrollo |
+| `APP_CRYPTO_HASH_KEY_BASE64` | Clave HMAC-SHA256 (32 bytes, base64) | valor de desarrollo |
+| `DB_NAME` | Nombre de la base de datos | `credit_scoring` |
+| `DB_USERNAME` | Usuario de PostgreSQL | `postgres` |
+| `DB_PASSWORD` | Contraseña de PostgreSQL | `postgres` |
+| `APP_PORT` | Puerto expuesto de la app | `8080` |
 
 ### `application.yml` — propiedades clave
 
 ```yaml
+spring:
+  data:
+    web:
+      pageable:
+        serialization-mode: via-dto   # Formato Spring Data 3.3+: page metadata bajo clave "page"
+
 app:
   security:
     jwt:
@@ -860,4 +899,4 @@ Disponibles en `/actuator/prometheus`. Métricas custom:
 
 ---
 
-*Última actualización: Abril 1 2026*
+*Última actualización: Abril 4 2026*
