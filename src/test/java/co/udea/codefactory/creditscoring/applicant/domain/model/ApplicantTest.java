@@ -30,7 +30,7 @@ class ApplicantTest {
     void registerNew_acceptsNullPhone() {
         Applicant applicant = Applicant.registerNew(
                 "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
-                EmploymentType.EMPLEADO, VALID_INCOME, 36, null, FIXED_CLOCK);
+                EmploymentType.EMPLEADO, VALID_INCOME, 36, null, null, null, FIXED_CLOCK);
 
         assertThat(applicant.phone()).isNull();
     }
@@ -39,7 +39,7 @@ class ApplicantTest {
     void registerNew_acceptsValidPhone() {
         Applicant applicant = Applicant.registerNew(
                 "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
-                EmploymentType.EMPLEADO, VALID_INCOME, 36, "+57 310 555 1234", FIXED_CLOCK);
+                EmploymentType.EMPLEADO, VALID_INCOME, 36, "+57 310 555 1234", null, null, FIXED_CLOCK);
 
         assertThat(applicant.phone()).isEqualTo("+57 310 555 1234");
     }
@@ -50,7 +50,7 @@ class ApplicantTest {
                 "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
                 EmploymentType.EMPLEADO, VALID_INCOME, 36,
                 "123456789012345678901", // 21 chars — over limit
-                FIXED_CLOCK))
+                null, null, FIXED_CLOCK))
                 .isInstanceOf(ApplicantValidationException.class)
                 .hasMessageContaining("teléfono");
     }
@@ -60,7 +60,7 @@ class ApplicantTest {
         UUID id = UUID.randomUUID();
         Applicant applicant = Applicant.rehydrate(
                 id, "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
-                EmploymentType.EMPLEADO, VALID_INCOME, 36, "+57 300 000 0000", FIXED_CLOCK);
+                EmploymentType.EMPLEADO, VALID_INCOME, 36, "+57 300 000 0000", null, null, FIXED_CLOCK);
 
         assertThat(applicant.id()).isEqualTo(id);
         assertThat(applicant.phone()).isEqualTo("+57 300 000 0000");
@@ -71,7 +71,7 @@ class ApplicantTest {
         UUID id = UUID.randomUUID();
         Applicant applicant = Applicant.rehydrate(
                 id, "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
-                EmploymentType.EMPLEADO, VALID_INCOME, 36, null, FIXED_CLOCK);
+                EmploymentType.EMPLEADO, VALID_INCOME, 36, null, null, null, FIXED_CLOCK);
 
         assertThat(applicant.phone()).isNull();
     }

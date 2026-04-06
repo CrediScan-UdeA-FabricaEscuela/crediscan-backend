@@ -17,7 +17,9 @@ public record Applicant(
         EmploymentType employmentType,
         BigDecimal monthlyIncome,
         Integer workExperienceMonths,
-        String phone) {
+        String phone,
+        String address,
+        String email) {
 
     private static final String NAME_REQUIRED_MESSAGE = "Todos los campos obligatorios deben estar diligenciados";
     private static final String IDENTIFICATION_REQUIRED_MESSAGE = "La identificacion es obligatoria";
@@ -26,6 +28,8 @@ public record Applicant(
     private static final String AGE_INVALID_MESSAGE = "Solo se aceptan solicitantes mayores de 18 años";
     private static final String WORK_EXPERIENCE_INVALID_MESSAGE = "La antiguedad_laboral debe ser mayor o igual a 0";
     private static final String PHONE_TOO_LONG_MESSAGE = "El teléfono no puede superar 20 caracteres";
+    private static final String ADDRESS_TOO_LONG_MESSAGE = "La dirección no puede superar 500 caracteres";
+    private static final String EMAIL_INVALID_MESSAGE = "El correo electrónico no es válido";
 
     public static Applicant registerNew(
             String name,
@@ -35,9 +39,11 @@ public record Applicant(
             BigDecimal monthlyIncome,
             Integer workExperienceMonths,
             String phone,
+            String address,
+            String email,
             Clock clock) {
 
-        validate(name, identification, birthDate, employmentType, monthlyIncome, workExperienceMonths, phone, clock);
+        validate(name, identification, birthDate, employmentType, monthlyIncome, workExperienceMonths, phone, address, email, clock);
         return new Applicant(
                 UUID.randomUUID(),
                 name.trim(),
@@ -46,7 +52,9 @@ public record Applicant(
                 employmentType,
                 monthlyIncome,
                 workExperienceMonths,
-                phone);
+                phone,
+                address,
+                email);
     }
 
     public static Applicant rehydrate(
@@ -58,13 +66,15 @@ public record Applicant(
             BigDecimal monthlyIncome,
             Integer workExperienceMonths,
             String phone,
+            String address,
+            String email,
             Clock clock) {
 
-        validate(name, identification, birthDate, employmentType, monthlyIncome, workExperienceMonths, phone, clock);
+        validate(name, identification, birthDate, employmentType, monthlyIncome, workExperienceMonths, phone, address, email, clock);
         if (id == null) {
             throw new ApplicantValidationException("El id es obligatorio");
         }
-        return new Applicant(id, name.trim(), identification.trim(), birthDate, employmentType, monthlyIncome, workExperienceMonths, phone);
+        return new Applicant(id, name.trim(), identification.trim(), birthDate, employmentType, monthlyIncome, workExperienceMonths, phone, address, email);
     }
 
     private static void validate(
@@ -75,6 +85,8 @@ public record Applicant(
             BigDecimal monthlyIncome,
             Integer workExperienceMonths,
             String phone,
+            String address,
+            String email,
             Clock clock) {
 
         if (name == null || name.isBlank()) {
@@ -97,6 +109,12 @@ public record Applicant(
         }
         if (phone != null && phone.length() > 20) {
             throw new ApplicantValidationException(PHONE_TOO_LONG_MESSAGE);
+        }
+        if (address != null && address.length() > 500) {
+            throw new ApplicantValidationException(ADDRESS_TOO_LONG_MESSAGE);
+        }
+        if (email != null && !email.isBlank() && !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new ApplicantValidationException(EMAIL_INVALID_MESSAGE);
         }
 
         LocalDate now = LocalDate.now(Objects.requireNonNullElse(clock, Clock.systemUTC()));

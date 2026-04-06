@@ -53,6 +53,12 @@ public class ApplicantJpaEntity {
     @Column(name = "phone", length = 20)
     private String phone;
 
+    @Column(name = "address", length = 500)
+    private String address;
+
+    @Column(name = "email", length = 255)
+    private String email;
+
     protected ApplicantJpaEntity() {}
 
     public UUID getId() { return id; }
@@ -93,4 +99,10 @@ public class ApplicantJpaEntity {
 
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }

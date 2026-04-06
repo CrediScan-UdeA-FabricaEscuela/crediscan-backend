@@ -59,6 +59,8 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
         entity.setMonthlyIncome(applicant.monthlyIncome());
         entity.setWorkExperienceMonths(applicant.workExperienceMonths());
         entity.setPhone(applicant.phone());
+        entity.setAddress(applicant.address());
+        entity.setEmail(applicant.email());
         entity.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         entity.setCreatedBy(currentUsername());
         jpaRepository.save(entity);
@@ -90,6 +92,8 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
         entity.setMonthlyIncome(applicant.monthlyIncome());
         entity.setWorkExperienceMonths(applicant.workExperienceMonths());
         entity.setPhone(applicant.phone());
+        entity.setAddress(applicant.address());
+        entity.setEmail(applicant.email());
         entity.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         entity.setUpdatedBy(currentUsername());
         jpaRepository.save(entity);
@@ -107,6 +111,8 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
                 entity.getMonthlyIncome(),
                 entity.getWorkExperienceMonths(),
                 entity.getPhone(),
+                entity.getAddress(),
+                entity.getEmail(),
                 clock);
     }
 
@@ -120,7 +126,9 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
                 entity.getEmploymentType(),
                 entity.getMonthlyIncome(),
                 entity.getWorkExperienceMonths(),
-                entity.getPhone());
+                entity.getPhone(),
+                entity.getAddress(),
+                entity.getEmail());
     }
 
     private String currentUsername() {

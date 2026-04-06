@@ -66,6 +66,8 @@ public class UpdateApplicantService implements UpdateApplicantUseCase {
         BigDecimal newMonthlyIncome = resolveBigDecimal("ingresos_mensuales", command.monthlyIncome(), existing.monthlyIncome(), changedFields, actor, existing.id());
         Integer newWorkExp = resolveInteger("antiguedad_laboral", command.workExperienceMonths(), existing.workExperienceMonths(), changedFields, actor, existing.id());
         String newPhone = resolveString("telefono", command.phone(), existing.phone(), changedFields, actor, existing.id());
+        String newAddress = resolveString("direccion", command.address(), existing.address(), changedFields, actor, existing.id());
+        String newEmail = resolveString("correo_electronico", command.email(), existing.email(), changedFields, actor, existing.id());
 
         Applicant updated = Applicant.rehydrate(
                 existing.id(),
@@ -76,6 +78,8 @@ public class UpdateApplicantService implements UpdateApplicantUseCase {
                 newMonthlyIncome,
                 newWorkExp,
                 newPhone,
+                newAddress,
+                newEmail,
                 clock);
 
         Applicant saved = applicantRepositoryPort.update(updated);

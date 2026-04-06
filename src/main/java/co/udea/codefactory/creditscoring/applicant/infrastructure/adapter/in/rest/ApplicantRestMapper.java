@@ -29,7 +29,9 @@ public class ApplicantRestMapper {
                 request.birthDate(),
                 request.employmentType(),
                 request.monthlyIncome(),
-                request.workExperienceMonths());
+                request.workExperienceMonths(),
+                request.address(),
+                request.email());
     }
 
     public RegisterApplicantResponse toResponse(Applicant applicant) {
@@ -47,7 +49,9 @@ public class ApplicantRestMapper {
                 request.employmentType(),
                 request.monthlyIncome(),
                 request.workExperienceMonths(),
-                request.phone());
+                request.phone(),
+                request.address(),
+                request.email());
     }
 
     public UpdateApplicantResponse toUpdateResponse(UpdateApplicantResult result) {
@@ -67,7 +71,9 @@ public class ApplicantRestMapper {
                 summary.employmentType(),
                 summary.monthlyIncome(),
                 summary.workExperienceMonths(),
-                summary.phone());
+                summary.phone(),
+                summary.address(),
+                summary.email());
     }
 
     private ApplicantResponse toApplicantResponse(Applicant applicant) {
@@ -79,6 +85,8 @@ public class ApplicantRestMapper {
                 applicant.employmentType().apiValue(),
                 applicant.monthlyIncome(),
                 applicant.workExperienceMonths(),
-                applicant.phone());
+                applicant.phone(),
+                applicant.address(),
+                applicant.email());
     }
 }

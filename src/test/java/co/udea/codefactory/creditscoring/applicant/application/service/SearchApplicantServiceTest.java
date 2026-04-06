@@ -43,7 +43,7 @@ class SearchApplicantServiceTest {
 
     private ApplicantSummary aSummary(String name) {
         return new ApplicantSummary(UUID.randomUUID(), name, "1017234567",
-                LocalDate.of(1990, 1, 1), "Empleado", new BigDecimal("3500000"), 36, null);
+                LocalDate.of(1990, 1, 1), "Empleado", new BigDecimal("3500000"), 36, null, null, null);
     }
 
     @Test

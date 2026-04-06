@@ -52,18 +52,18 @@ class UpdateApplicantServiceTest {
     private Applicant existingApplicant(UUID id) {
         return Applicant.rehydrate(id, "Juan Pérez", "1017234567",
                 LocalDate.of(1990, 5, 15), EmploymentType.EMPLEADO,
-                new BigDecimal("3500000"), 36, null, FIXED_CLOCK);
+                new BigDecimal("3500000"), 36, null, null, null, FIXED_CLOCK);
     }
 
     private UpdateApplicantCommand commandWith(UUID id, String phone) {
-        return new UpdateApplicantCommand(id, "analyst", null, null, null, null, null, null, phone);
+        return new UpdateApplicantCommand(id, "analyst", null, null, null, null, null, null, phone, null, null);
     }
 
     @Test
     void update_withIdentificationInCommand_throwsImmutableFieldException() {
         UUID id = UUID.randomUUID();
         UpdateApplicantCommand command = new UpdateApplicantCommand(
-                id, "analyst", null, "9999999999", null, null, null, null, null);
+                id, "analyst", null, "9999999999", null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> createService().update(command))
                 .isInstanceOf(ImmutableFieldException.class)
@@ -74,7 +74,7 @@ class UpdateApplicantServiceTest {
     void update_withBirthDateInCommand_throwsImmutableFieldException() {
         UUID id = UUID.randomUUID();
         UpdateApplicantCommand command = new UpdateApplicantCommand(
-                id, "analyst", null, null, LocalDate.of(1995, 1, 1), null, null, null, null);
+                id, "analyst", null, null, LocalDate.of(1995, 1, 1), null, null, null, null, null, null);
 
         assertThatThrownBy(() -> createService().update(command))
                 .isInstanceOf(ImmutableFieldException.class)
@@ -141,7 +141,7 @@ class UpdateApplicantServiceTest {
         when(applicantRepositoryPort.update(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // All fields null except applicantId — no field is being changed
-        UpdateApplicantCommand command = new UpdateApplicantCommand(id, "analyst", null, null, null, null, null, null, null);
+        UpdateApplicantCommand command = new UpdateApplicantCommand(id, "analyst", null, null, null, null, null, null, null, null, null);
         UpdateApplicantResult result = createService().update(command);
 
         verify(applicantEditAuditPort, never()).saveEditAudit(any(), any(), any(), any(), any());

@@ -29,5 +29,11 @@ public record ApplicantResponse(
         Integer workExperienceMonths,
 
         @JsonProperty("telefono")
-        String phone) {
+        String phone,
+
+        @JsonProperty("direccion")
+        String address,
+
+        @JsonProperty("correo_electronico")
+        String email) {
 }

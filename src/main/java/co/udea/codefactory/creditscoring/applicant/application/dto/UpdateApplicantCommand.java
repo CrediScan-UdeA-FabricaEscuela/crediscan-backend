@@ -19,5 +19,7 @@ public record UpdateApplicantCommand(
         String employmentType,
         BigDecimal monthlyIncome,
         Integer workExperienceMonths,
-        String phone) {
+        String phone,
+        String address,
+        String email) {
 }

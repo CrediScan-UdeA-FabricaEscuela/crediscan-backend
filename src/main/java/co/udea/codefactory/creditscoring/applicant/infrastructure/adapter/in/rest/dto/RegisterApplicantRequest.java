@@ -33,5 +33,11 @@ public record RegisterApplicantRequest(
         @JsonProperty("antiguedad_laboral")
         @NotNull(message = "La antiguedad_laboral es obligatoria")
         @Min(value = 0, message = "La antiguedad_laboral debe ser mayor o igual a 0")
-        Integer workExperienceMonths) {
+        Integer workExperienceMonths,
+
+        @JsonProperty("direccion")
+        String address,
+
+        @JsonProperty("correo_electronico")
+        String email) {
 }

@@ -34,5 +34,13 @@ public record ApplicantSearchResponse(
 
         @JsonProperty("telefono")
         @JsonInclude(JsonInclude.Include.ALWAYS)
-        String phone) {
+        String phone,
+
+        @JsonProperty("direccion")
+        @JsonInclude(JsonInclude.Include.ALWAYS)
+        String address,
+
+        @JsonProperty("correo_electronico")
+        @JsonInclude(JsonInclude.Include.ALWAYS)
+        String email) {
 }

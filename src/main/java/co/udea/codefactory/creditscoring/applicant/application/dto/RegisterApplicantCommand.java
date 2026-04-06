@@ -9,5 +9,7 @@ public record RegisterApplicantCommand(
         LocalDate birthDate,
         String employmentType,
         BigDecimal monthlyIncome,
-        Integer workExperienceMonths) {
+        Integer workExperienceMonths,
+        String address,
+        String email) {
 }
