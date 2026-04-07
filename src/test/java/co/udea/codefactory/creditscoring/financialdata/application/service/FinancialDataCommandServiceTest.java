@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -58,7 +59,7 @@ class FinancialDataCommandServiceTest {
 
     private Applicant existingApplicant(UUID id) {
         return Applicant.rehydrate(id, "Ana Mora", "1234567890",
-                null, EmploymentType.EMPLEADO, new BigDecimal("42000000"), 24,
+                LocalDate.of(1990, 6, 15), EmploymentType.EMPLEADO, new BigDecimal("42000000"), 24,
                 null, null, null, FIXED_CLOCK);
     }
 

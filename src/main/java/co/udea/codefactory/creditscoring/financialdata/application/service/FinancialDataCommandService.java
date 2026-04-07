@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import co.udea.codefactory.creditscoring.applicant.domain.port.out.ApplicantRepositoryPort;
 import co.udea.codefactory.creditscoring.financialdata.application.dto.FinancialDataRequest;
@@ -39,41 +40,29 @@ public class FinancialDataCommandService implements CreateFinancialDataUseCase, 
     }
 
     @Override
+    @Transactional
     public FinancialData create(UUID applicantId, FinancialDataRequest request) {
         ensureApplicantExists(applicantId);
         int nextVersion = financialDataRepositoryPort.findMaxVersionByApplicantId(applicantId).orElse(0) + 1;
-        OffsetDateTime now = OffsetDateTime.now(clock);
-        FinancialData financialData = new FinancialData(
-                UUID.randomUUID(),
-                applicantId,
-                nextVersion,
-                request.annualIncome(),
-                request.monthlyExpenses(),
-                request.currentDebts(),
-                request.assetsValue(),
-                request.declaredPatrimony(),
-                request.hasOutstandingDefaults(),
-                request.creditHistoryMonths(),
-                request.defaultsLast12m(),
-                request.defaultsLast24m(),
-                request.externalBureauScore(),
-                request.activeCreditProducts(),
-                now,
-                now);
-        return financialDataRepositoryPort.save(financialData);
+        return financialDataRepositoryPort.save(buildFinancialData(applicantId, nextVersion, request));
     }
 
     @Override
+    @Transactional
     public FinancialData update(UUID applicantId, int version, FinancialDataRequest request) {
         ensureApplicantExists(applicantId);
         financialDataRepositoryPort.findByApplicantIdAndVersion(applicantId, version)
                 .orElseThrow(() -> new ResourceNotFoundException("FinancialData", "version", version));
         int nextVersion = financialDataRepositoryPort.findMaxVersionByApplicantId(applicantId).orElse(version) + 1;
+        return financialDataRepositoryPort.save(buildFinancialData(applicantId, nextVersion, request));
+    }
+
+    private FinancialData buildFinancialData(UUID applicantId, int version, FinancialDataRequest request) {
         OffsetDateTime now = OffsetDateTime.now(clock);
-        FinancialData financialData = new FinancialData(
+        return new FinancialData(
                 UUID.randomUUID(),
                 applicantId,
-                nextVersion,
+                version,
                 request.annualIncome(),
                 request.monthlyExpenses(),
                 request.currentDebts(),
@@ -87,7 +76,6 @@ public class FinancialDataCommandService implements CreateFinancialDataUseCase, 
                 request.activeCreditProducts(),
                 now,
                 now);
-        return financialDataRepositoryPort.save(financialData);
     }
 
     private void ensureApplicantExists(UUID applicantId) {

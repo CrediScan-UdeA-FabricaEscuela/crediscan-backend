@@ -70,7 +70,7 @@ public class FinancialDataController {
     @PutMapping("/{id}/datos-financieros/{version}")
     @PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")
     @Operation(summary = "Actualizar datos financieros",
-               description = "Actualiza los datos financieros de un solicitante generando una nueva versión histórica")
+               description = "Toma la versión indicada como referencia y persiste una nueva versión histórica con los datos proporcionados. La operación NO es idempotente: cada llamada genera una versión adicional.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Datos financieros actualizados"),
             @ApiResponse(responseCode = "400", description = "Solicitud inválida",

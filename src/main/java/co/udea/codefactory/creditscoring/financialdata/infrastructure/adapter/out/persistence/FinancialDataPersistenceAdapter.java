@@ -1,8 +1,5 @@
 package co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence;
 
-import java.time.Clock;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,16 +15,10 @@ import co.udea.codefactory.creditscoring.financialdata.domain.port.out.Financial
 public class FinancialDataPersistenceAdapter implements FinancialDataRepositoryPort {
 
     private final JpaFinancialDataRepository jpaRepository;
-    private final Clock clock;
 
     @Autowired
     public FinancialDataPersistenceAdapter(JpaFinancialDataRepository jpaRepository) {
-        this(jpaRepository, Clock.systemUTC());
-    }
-
-    FinancialDataPersistenceAdapter(JpaFinancialDataRepository jpaRepository, Clock clock) {
         this.jpaRepository = jpaRepository;
-        this.clock = clock;
     }
 
     @Override
