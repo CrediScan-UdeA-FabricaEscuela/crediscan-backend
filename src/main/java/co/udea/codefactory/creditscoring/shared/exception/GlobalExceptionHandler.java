@@ -24,6 +24,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import co.udea.codefactory.creditscoring.applicant.domain.exception.ApplicantValidationException;
 import co.udea.codefactory.creditscoring.applicant.domain.exception.DuplicateApplicantException;
 import co.udea.codefactory.creditscoring.applicant.domain.exception.ImmutableFieldException;
+import co.udea.codefactory.creditscoring.financialdata.domain.exception.InvalidFinancialDataException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.DuplicateUserException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.InvalidCredentialsException;
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.LastAdminException;
@@ -102,6 +103,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         enrichWithPath(problem, request);
 
         log.warn("Applicant validation error: {}", ex.getMessage());
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidFinancialDataException.class)
+    public ProblemDetail handleInvalidFinancialData(InvalidFinancialDataException ex, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Validation Error");
+        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/validation"));
+        problem.setProperty("errorCode", "VALIDATION_FAILED");
+        problem.setProperty("traceId", MDC.get("traceId"));
+        problem.setProperty("timestamp", Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Financial data validation error: {}", ex.getMessage());
         return problem;
     }
 
