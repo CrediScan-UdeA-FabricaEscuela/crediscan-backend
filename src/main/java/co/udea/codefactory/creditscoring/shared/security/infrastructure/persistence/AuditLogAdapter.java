@@ -62,14 +62,6 @@ public class AuditLogAdapter implements AuditLogPort, AuditLogQueryPort {
                 .map(this::toAuditLogRecord);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<AuditLogRecord> search(AuditLogFilter filter) {
-        return jpaRepository.findAll(buildSpecification(filter)).stream()
-                .map(this::toAuditLogRecord)
-                .toList();
-    }
-
     private AuditLogRecord toAuditLogRecord(JpaAuditLogEntity entity) {
         return new AuditLogRecord(
                 entity.getId(),

@@ -19,13 +19,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import co.udea.codefactory.creditscoring.shared.security.domain.exception.InvalidCredentialsException;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuthResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.AuthenticateUseCase;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.ChangeUserRoleUseCase;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.CreateUserUseCase;
-import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.ChangeRoleRequest;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.CreateUserRequest;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.rest.dto.CreateUserResponse;
@@ -40,33 +38,23 @@ public class AuthController {
     private final AuthenticateUseCase authenticateUseCase;
     private final ChangeUserRoleUseCase changeUserRoleUseCase;
     private final CreateUserUseCase createUserUseCase;
-    private final AuditLogPort auditLog;
 
     public AuthController(
             AuthenticateUseCase authenticateUseCase,
             ChangeUserRoleUseCase changeUserRoleUseCase,
-            CreateUserUseCase createUserUseCase,
-            AuditLogPort auditLog) {
+            CreateUserUseCase createUserUseCase) {
         this.authenticateUseCase = authenticateUseCase;
         this.changeUserRoleUseCase = changeUserRoleUseCase;
         this.createUserUseCase = createUserUseCase;
-        this.auditLog = auditLog;
     }
 
     @PostMapping("/login")
     @Operation(summary = "Iniciar sesión", description = "Autenticar usuario y obtener JWT")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
                                                HttpServletRequest servletRequest) {
-        try {
-            AuthResult result = authenticateUseCase.authenticate(request.username(), request.password());
-            auditLog.record("USER", null, "LOGIN", request.username(), getClientIp(servletRequest), "SUCCESS", null,
-                    null);
-            return ResponseEntity.ok(new LoginResponse(result.token(), result.role(), result.expiresAt()));
-        } catch (InvalidCredentialsException ex) {
-            auditLog.record("USER", null, "LOGIN", request.username(), getClientIp(servletRequest), "FAILURE", null,
-                    null);
-            throw ex;
-        }
+        AuthResult result = authenticateUseCase.authenticate(
+                request.username(), request.password(), getClientIp(servletRequest));
+        return ResponseEntity.ok(new LoginResponse(result.token(), result.role(), result.expiresAt()));
     }
 
     @PostMapping("/usuarios")

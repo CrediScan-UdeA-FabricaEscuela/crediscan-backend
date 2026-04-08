@@ -2,6 +2,7 @@ package co.udea.codefactory.creditscoring.shared.security.infrastructure.rest;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,8 +15,10 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -151,14 +154,15 @@ public class AuditLogController {
         return escaped;
     }
 
-    private java.util.UUID parseUuid(String value) {
+    private UUID parseUuid(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
         try {
-            return java.util.UUID.fromString(value);
+            return UUID.fromString(value);
         } catch (IllegalArgumentException e) {
-            return null;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Formato de UUID inválido para recurso_id: " + value);
         }
     }
 }

@@ -3,6 +3,7 @@ package co.udea.codefactory.creditscoring.shared.security.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
@@ -23,6 +24,7 @@ import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuthResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtProperties;
 import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtService;
 
@@ -42,6 +44,9 @@ class AuthenticateServiceTest {
     private AppUserRepositoryPort userRepository;
 
     @Mock
+    private AuditLogPort auditLog;
+
+    @Mock
     private Authentication authentication;
 
     private JwtService jwtService;
@@ -56,7 +61,7 @@ class AuthenticateServiceTest {
         props.setExpirationMs(3_600_000L);
 
         jwtService = new JwtService(props);
-        service = new AuthenticateService(authenticationManager, jwtService, props, userRepository);
+        service = new AuthenticateService(authenticationManager, jwtService, props, userRepository, auditLog);
 
         adminUser = new AppUser(
                 UUID.fromString("a0000000-0000-0000-0000-000000000001"),
@@ -79,11 +84,12 @@ class AuthenticateServiceTest {
                         List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
 
-        AuthResult result = service.authenticate("admin", "correct-password");
+        AuthResult result = service.authenticate("admin", "correct-password", "127.0.0.1");
 
         assertThat(result.token()).isNotBlank();
         assertThat(result.role()).isEqualTo(Role.ADMIN);
         assertThat(result.expiresAt()).isNotNull();
+        verify(auditLog).record("USER", null, "LOGIN", "admin", "127.0.0.1", "SUCCESS", null, null);
     }
 
     // --- bad credentials throw InvalidCredentialsException ---
@@ -93,7 +99,8 @@ class AuthenticateServiceTest {
         when(authenticationManager.authenticate(any()))
                 .thenThrow(new BadCredentialsException("bad"));
 
-        assertThatThrownBy(() -> service.authenticate("admin", "wrong"))
+        assertThatThrownBy(() -> service.authenticate("admin", "wrong", "10.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
+        verify(auditLog).record("USER", null, "LOGIN", "admin", "10.0.0.1", "FAILURE", null, null);
     }
 }

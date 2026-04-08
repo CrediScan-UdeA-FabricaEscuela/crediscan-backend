@@ -59,8 +59,8 @@ class GetAuditLogsServiceTest {
     }
 
     @Test
-    void export_delegatesToQueryPort() {
-        List<AuditLogRecord> records = List.of(new AuditLogRecord(
+    void export_delegatesToQueryPortWithSizeLimit() {
+        AuditLogRecord record = new AuditLogRecord(
                 UUID.randomUUID(),
                 Instant.parse("2026-04-07T12:00:00Z"),
                 "USER",
@@ -71,12 +71,15 @@ class GetAuditLogsServiceTest {
                 "SUCCESS",
                 null,
                 null,
-                null));
-        when(auditLogQueryPort.search(any(AuditLogFilter.class))).thenReturn(records);
+                null);
+        Page<AuditLogRecord> page = new PageImpl<>(List.of(record));
+        when(auditLogQueryPort.search(any(AuditLogFilter.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
 
         List<AuditLogRecord> result = service.export(new AuditLogFilter(null, null, null, null, null, null, null));
 
-        assertThat(result).isEqualTo(records);
-        verify(auditLogQueryPort).search(any(AuditLogFilter.class));
+        assertThat(result).hasSize(1);
+        verify(auditLogQueryPort).search(
+                any(AuditLogFilter.class),
+                org.mockito.ArgumentMatchers.argThat(p -> p.getPageSize() == GetAuditLogsService.MAX_EXPORT_SIZE));
     }
 }

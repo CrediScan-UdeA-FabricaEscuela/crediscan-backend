@@ -70,10 +70,10 @@ class AuditLogControllerTest {
                 null,
                 null,
                 PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt")),
-                auth);
+                auth).getBody();
 
         assertThat(response.getTotalElements()).isEqualTo(1);
-        assertThat(response.getContent().get(0).getAccion()).isEqualTo("CREATE");
+        assertThat(response.getContent().get(0).accion()).isEqualTo("CREATE");
         verify(getAuditLogsUseCase).search(any(AuditLogFilter.class), any(PageRequest.class));
     }
 

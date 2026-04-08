@@ -1,7 +1,5 @@
 package co.udea.codefactory.creditscoring.shared.security.domain.port.out;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -11,6 +9,4 @@ import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogRe
 public interface AuditLogQueryPort {
 
     Page<AuditLogRecord> search(AuditLogFilter filter, Pageable pageable);
-
-    List<AuditLogRecord> search(AuditLogFilter filter);
 }
