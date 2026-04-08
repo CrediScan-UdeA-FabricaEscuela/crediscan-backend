@@ -24,7 +24,7 @@ public class JpaAuditLogEntity {
     @Column(name = "entity_type", nullable = false, length = 50)
     private String entityType;
 
-    @Column(name = "entity_id", nullable = false)
+    @Column(name = "entity_id", nullable = true)
     private UUID entityId;
 
     @Column(nullable = false, length = 30)

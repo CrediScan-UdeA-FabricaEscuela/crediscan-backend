@@ -476,6 +476,7 @@ El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resou
 | V18 | Columna `phone` en `applicant`; permiso `ANALYST APPLICANT UPDATE` en `role_permission` |
 | V19 | Columnas `defaults_last_12m`, `defaults_last_24m`,`external_bureau_score`,`active_credit_products` en `financial_data` y `email`,`address` en `applicant`|
 | V20 | Columna `result` a `audit_log` |
+| V21 | Hace `entity_id` nullable en `audit_log` para fallos de login |
 
 ### Convenciones de la BD
 
