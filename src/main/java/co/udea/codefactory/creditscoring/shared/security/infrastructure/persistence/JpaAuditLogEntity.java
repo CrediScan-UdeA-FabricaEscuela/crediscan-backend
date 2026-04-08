@@ -36,6 +36,9 @@ public class JpaAuditLogEntity {
     @Column(name = "actor_ip", length = 45)
     private String actorIp;
 
+    @Column(length = 20)
+    private String result;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "data_before", columnDefinition = "jsonb")
     private String dataBefore;
@@ -69,6 +72,9 @@ public class JpaAuditLogEntity {
 
     public String getActorIp() { return actorIp; }
     public void setActorIp(String actorIp) { this.actorIp = actorIp; }
+
+    public String getResult() { return result; }
+    public void setResult(String result) { this.result = result; }
 
     public String getDataBefore() { return dataBefore; }
     public void setDataBefore(String dataBefore) { this.dataBefore = dataBefore; }

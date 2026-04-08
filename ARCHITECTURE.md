@@ -54,10 +54,10 @@ La idea central es que el **dominio de negocio no sabe nada de infraestructura**
 ┌─────────────────────────────────────────────────────────────┐
 │                      INFRAESTRUCTURA                        │
 │                                                             │
-│  ┌─────────────┐   ┌──────────────────────────────────┐    │
-│  │  REST API   │   │          ADAPTADORES OUT           │    │
-│  │ (Adapter IN)│   │  JPA / Crypto / Metrics / JWT     │    │
-│  └──────┬──────┘   └──────────────┬───────────────────┘    │
+│  ┌─────────────┐   ┌──────────────────────────────────┐     │
+│  │  REST API   │   │          ADAPTADORES OUT         │     │
+│  │ (Adapter IN)│   │  JPA / Crypto / Metrics / JWT    │     │
+│  └──────┬──────┘   └──────────────┬───────────────────┘     │
 │         │                         │                         │
 └─────────┼─────────────────────────┼─────────────────────────┘
           │                         │
@@ -66,7 +66,7 @@ La idea central es que el **dominio de negocio no sabe nada de infraestructura**
 │                       APLICACIÓN                            │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              UseCase / Service                       │    │
+│  │              UseCase / Service                      │    │
 │  │   Orquesta el flujo. No sabe cómo se persiste.      │    │
 │  └─────────────────────────────────────────────────────┘    │
 │                                                             │
@@ -76,8 +76,8 @@ La idea central es que el **dominio de negocio no sabe nada de infraestructura**
 ┌─────────────────────────────────────────────────────────────┐
 │                        DOMINIO                              │
 │                                                             │
-│   Modelos · Puertos IN · Puertos OUT · Excepciones         │
-│   (No depende de nada externo. Es el corazón.)             │
+│   Modelos · Puertos IN · Puertos OUT · Excepciones          │
+│   (No depende de nada externo. Es el corazón.)              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -330,13 +330,52 @@ Evaluación de crédito: corre el scoring model contra los datos del solicitante
 
 ---
 
-### ⏳ FINANCIAL DATA — Estructura creada, lógica pendiente
+### ⏳ FINANCIAL DATA — Parcialmente implementado.
 
-Datos financieros del solicitante (ingresos, gastos, deudas, activos).
+Captura y versionado de datos financieros de los solicitantes: ingresos, gastos, deudas y activos.
 
-- **Tabla creada:** `financial_data` (con versionado — cada update es una nueva version)
-- **Pendiente:** controller, puertos, adaptadores
+**Modelos clave:**
 
+```java
+// FinancialData es un record inmutable con validaciones en el constructor
+public record FinancialData(UUID id, UUID applicantId, int version,
+                            BigDecimal annualIncome, BigDecimal monthlyExpenses,
+                            BigDecimal currentDebts, BigDecimal assetsValue,
+                            BigDecimal declaredPatrimony, boolean hasOutstandingDefaults,
+                            int creditHistoryMonths, int defaultsLast12m, int defaultsLast24m,
+                            Integer externalBureauScore, int activeCreditProducts,
+                            OffsetDateTime createdAt, OffsetDateTime updatedAt)
+
+// Reglas de negocio aplicadas en el constructor:
+// - applicantId obligatorio
+// - version >= 0
+// - annualIncome, monthlyExpenses, currentDebts, assetsValue, declaredPatrimony >= 0
+// - creditHistoryMonths, defaultsLast12m, defaultsLast24m, activeCreditProducts >= 0
+// - externalBureauScore entre 0 y 999 si presente
+```
+
+**Flujo de registro (POST /api/v1/solicitantes/{id}/datos-financieros):**
+1. Controller recibe `FinancialDataRequest` con validaciones (@Valid)
+2. Service verifica que el solicitante existe via `ApplicantRepositoryPort`
+3. Calcula la siguiente versión: max(version) + 1 para el applicantId
+4. Crea nuevo `FinancialData` con ID aleatorio, timestamps actuales
+5. Persiste via `FinancialDataRepositoryPort.save()`
+6. Retorna `FinancialDataResponse` con campos calculados (ratios, alertas)
+
+**Flujo de actualización (PUT /api/v1/solicitantes/{id}/datos-financieros/{version}):**
+1. Controller recibe `FinancialDataRequest` y versión de referencia
+2. Service verifica que el solicitante existe y que la versión especificada existe
+3. Calcula nueva versión: max(version) + 1 para el applicantId
+4. Crea nuevo `FinancialData` con ID aleatorio, timestamps actuales (versionado histórico)
+5. Persiste via `FinancialDataRepositoryPort.save()`
+6. Retorna `FinancialDataResponse` con la nueva versión
+
+**Seguridades:**
+- Registro: `@PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")`
+- Actualización: `@PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")`
+
+### ⏳ Funcionalidades por implementar:
+- Consulta de historial de datos financieros: /api/v1/solicitantes/{id}/datos-financieros?incluir_historial=true
 ---
 
 ### ⏳ SCORING — Estructura creada, lógica pendiente
@@ -358,6 +397,55 @@ Reportes de distribución de riesgo y estadísticas.
 
 ---
 
+### ✅ AUDITORÍA Y TRAZABILIDAD — Completamente implementado.
+
+Captura y consulta de eventos relevantes del sistema, con filtrado, paginación y exportación.
+
+**Modelos clave:**
+
+```java
+// AuditLogRecord es un record inmutable que representa cada evento auditor
+public record AuditLogRecord(UUID id,
+                             OffsetDateTime timestamp,
+                             String userId,
+                             String username,
+                             String action,
+                             String resource,
+                             String resourceId,
+                             String ipAddress,
+                             String result,
+                             String beforeState,
+                             String afterState,
+                             String metadataJson) {}
+```
+
+**Flujo de escritura de auditoría:**
+1. Cada evento relevante del sistema invoca `AuditLogPort.record(...)`
+2. El adaptador JPA persiste el registro en `audit_log`
+3. El log queda inmutable y se conserva para trazabilidad posterior
+
+**Flujo de consulta (GET /api/v1/auditoria):**
+1. Controller recibe filtros opcionales: `from`, `to`, `userId`, `action`, `resource`
+2. `GetAuditLogsService` construye la consulta dinámica
+3. El repositorio devuelve `Page<AuditLogRecord>` paginada
+4. La API responde con los registros y metadatos de paginación
+
+**Flujo de exportación (GET /api/v1/auditoria/export):**
+1. Controller recibe los mismos filtros que el listado
+2. El servicio obtiene todos los registros que coinciden
+3. La API devuelve un CSV con encabezados y datos de auditoría
+
+**Seguridades:**
+- Consulta general: `@PreAuthorize("hasRole('ADMIN') or hasRole('RISK_MANAGER') or hasRole('CREDIT_SUPERVISOR')")`
+- `ANALYST` puede acceder pero solo ve sus propios eventos auditados
+- Exportación: misma regla de roles y alcance aplicable
+
+**Notas importantes:**
+- El log de auditoría es un registro inmutable; no se ofrecen operaciones de actualización o eliminación.
+- El endpoint de exportación usa `text/csv` y nombres de columnas amigables para análisis.
+
+---
+
 ## 5. Base de Datos
 
 El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resources/db/migration/`.
@@ -368,6 +456,7 @@ El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resou
 
 | Migración | Cambios |
 |-----------|---------|
+| V1 | Esquema base e inicialización del proyecto |
 | V2 | `applicant` |
 | V3 | Extensiones PostgreSQL (pgcrypto, uuid-ossp) |
 | V4 | `app_user`, `role_permission` |
@@ -385,6 +474,8 @@ El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resou
 | V16 | Reemplaza rol AUDITOR → CREDIT_SUPERVISOR |
 | V17 | Simplifica PK de `audit_log`; agrega `created_by`/`updated_by` a `token_blacklist` |
 | V18 | Columna `phone` en `applicant`; permiso `ANALYST APPLICANT UPDATE` en `role_permission` |
+| V19 | Columnas `defaults_last_12m`, `defaults_last_24m`,`external_bureau_score`,`active_credit_products` en `financial_data` y `email`,`address` en `applicant`|
+| V20 | Columna `result` a `audit_log` |
 
 ### Convenciones de la BD
 

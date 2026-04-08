@@ -79,34 +79,9 @@ Para crear usuarios con otros roles (ANALYST, RISK_MANAGER, CREDIT_SUPERVISOR), 
 | PATCH | `/api/v1/solicitantes/{id}` | ANALYST, ADMIN | Editar solicitante |
 | POST | `/api/v1/solicitantes/{id}/datos-financieros` | ANALYST, ADMIN | Crear datos financieros del solicitante |
 | PUT | `/api/v1/solicitantes/{id}/datos-financieros/{version}` | ANALYST, ADMIN | Actualizar versión específica de datos financieros |
+| GET | `/api/v1/auditoria` | ADMIN, RISK_MANAGER, CREDIT_SUPERVISOR, ANALYST | Consultar logs de auditoría con filtros y paginación |
+| GET | `/api/v1/auditoria/export` | ADMIN, RISK_MANAGER, CREDIT_SUPERVISOR, ANALYST | Exportar logs de auditoría a CSV |
 
----
-
-## Datos financieros
-
-Los nuevos endpoints permiten registrar y actualizar datos financieros asociados a un solicitante.
-
-### Crear datos financieros
-
-`POST /api/v1/solicitantes/{id}/datos-financieros`
-
-Datos esperados:
-- `income` (decimal, mayor o igual a 0)
-- `expenses` (decimal, mayor o igual a 0)
-- `debtAmount` (decimal, mayor o igual a 0)
-- `creditScore` (integer, entre 0 y 1000)
-- `numCreditCards` (integer, mayor o igual a 0)
-- `numLoans` (integer, mayor o igual a 0)
-- `assets` (decimal, mayor o igual a 0)
-- `hasMortgages` (boolean)
-
-El endpoint devuelve los datos creados junto con ratios calculados como `debtToIncomeRatio` y `debtToExpensesRatio`, y banderas de alerta como `highDebtToIncome`.
-
-### Actualizar datos financieros
-
-`PUT /api/v1/solicitantes/{id}/datos-financieros/{version}`
-
-Este endpoint actualiza una versión específica de los datos financieros de un solicitante. El campo `version` permite conservar un historial de cambios y aplicar validaciones de versión.
 
 ---
 
