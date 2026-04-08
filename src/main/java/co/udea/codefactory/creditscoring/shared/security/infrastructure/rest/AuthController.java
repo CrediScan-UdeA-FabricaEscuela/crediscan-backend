@@ -3,6 +3,7 @@ package co.udea.codefactory.creditscoring.shared.security.infrastructure.rest;
 import java.net.URI;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,8 +50,10 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "Iniciar sesión", description = "Autenticar usuario y obtener JWT")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthResult result = authenticateUseCase.authenticate(request.username(), request.password());
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+                                               HttpServletRequest servletRequest) {
+        AuthResult result = authenticateUseCase.authenticate(
+                request.username(), request.password(), getClientIp(servletRequest));
         return ResponseEntity.ok(new LoginResponse(result.token(), result.role(), result.expiresAt()));
     }
 
@@ -80,5 +83,13 @@ public class AuthController {
             Authentication authentication) {
         changeUserRoleUseCase.changeRole(id, request.rol(), authentication.getName());
         return ResponseEntity.ok().build();
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }
