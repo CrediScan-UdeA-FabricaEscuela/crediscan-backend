@@ -13,27 +13,24 @@ import co.udea.codefactory.creditscoring.shared.security.domain.model.AuthResult
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.AuthenticateUseCase;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
-import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtProperties;
-import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtService;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenPort;
 
+// Servicio de aplicación para autenticación. Usa TokenPort para desacoplarse de la infra JWT
 @Service
 public class AuthenticateService implements AuthenticateUseCase {
 
     private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
-    private final JwtProperties jwtProperties;
+    private final TokenPort tokenPort;
     private final AppUserRepositoryPort userRepository;
     private final AuditLogPort auditLog;
 
     public AuthenticateService(
             AuthenticationManager authenticationManager,
-            JwtService jwtService,
-            JwtProperties jwtProperties,
+            TokenPort tokenPort,
             AppUserRepositoryPort userRepository,
             AuditLogPort auditLog) {
         this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
-        this.jwtProperties = jwtProperties;
+        this.tokenPort = tokenPort;
         this.userRepository = userRepository;
         this.auditLog = auditLog;
     }
@@ -51,8 +48,9 @@ public class AuthenticateService implements AuthenticateUseCase {
         AppUser user = userRepository.findByUsername(username)
                 .orElseThrow(InvalidCredentialsException::new);
 
-        String token = jwtService.generateToken(user);
-        Instant expiresAt = Instant.now().plusMillis(jwtProperties.getExpirationMs());
+        // Delega la generación del token y la expiración al puerto correspondiente
+        String token = tokenPort.generateToken(user);
+        Instant expiresAt = Instant.now().plusMillis(tokenPort.getExpirationMs());
 
         auditLog.record("USER", null, "LOGIN", username, actorIp, "SUCCESS", null, null);
         return new AuthResult(token, user.role(), expiresAt);

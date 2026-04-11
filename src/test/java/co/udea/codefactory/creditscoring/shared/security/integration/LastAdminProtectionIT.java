@@ -49,7 +49,7 @@ class LastAdminProtectionIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"rol\": \"ANALYST\"}"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message")
+                .andExpect(jsonPath("$.detail")
                         .value("No se puede modificar el último administrador del sistema"));
     }
 

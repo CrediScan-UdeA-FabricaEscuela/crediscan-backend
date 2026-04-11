@@ -7,11 +7,8 @@ import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -48,7 +45,7 @@ public class AuditLogController {
     @PreAuthorize("hasAnyRole('ADMIN','RISK_MANAGER','ANALYST')")
     @Operation(summary = "Buscar logs de auditoría",
                description = "Filtra y pagina la consulta de auditoría. Los analistas solo pueden ver su propia actividad.")
-    public ResponseEntity<Page<AuditLogResponse>> searchAuditLogs(
+    public ResponseEntity<PagedResult<AuditLogResponse>> searchAuditLogs(
             @RequestParam(value = "fecha_desde", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(value = "fecha_hasta", required = false)
@@ -58,11 +55,13 @@ public class AuditLogController {
             @RequestParam(value = "recurso", required = false) String entityType,
             @RequestParam(value = "recurso_id", required = false) String entityIdValue,
             @RequestParam(value = "ip", required = false) String actorIp,
-            @PageableDefault(size = MAX_PAGE_SIZE, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
             Authentication authentication) {
 
         String effectiveActor = enforceActorScope(authentication, actor);
-        Pageable pageRequest = PageRequest.of(pageable.getPageNumber(), Math.min(pageable.getPageSize(), MAX_PAGE_SIZE), pageable.getSort());
+        // Limita el tamaño de página al máximo permitido
+        PageRequest pageRequest = new PageRequest(page, Math.min(size, MAX_PAGE_SIZE));
 
         AuditLogFilter filter = new AuditLogFilter(
                 from,
@@ -73,8 +72,17 @@ public class AuditLogController {
                 parseUuid(entityIdValue),
                 actorIp);
 
-        Page<AuditLogRecord> result = getAuditLogsUseCase.search(filter, pageRequest);
-        Page<AuditLogResponse> response = result.map(AuditLogResponse::from);
+        PagedResult<AuditLogRecord> result = getAuditLogsUseCase.search(filter, pageRequest);
+        // Mapea el resultado de dominio a DTOs de respuesta
+        List<AuditLogResponse> responseContent = result.content().stream()
+                .map(AuditLogResponse::from)
+                .toList();
+        PagedResult<AuditLogResponse> response = new PagedResult<>(
+                responseContent,
+                result.totalElements(),
+                result.totalPages(),
+                result.pageNumber(),
+                result.pageSize());
         return ResponseEntity.ok(response);
     }
 

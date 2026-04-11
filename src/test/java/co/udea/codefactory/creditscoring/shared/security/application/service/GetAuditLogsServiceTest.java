@@ -14,10 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogFilter;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogRecord;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogQueryPort;
@@ -49,13 +48,16 @@ class GetAuditLogsServiceTest {
                 null,
                 null,
                 null);
-        Page<AuditLogRecord> page = new PageImpl<>(List.of(record));
-        when(auditLogQueryPort.search(any(AuditLogFilter.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+        // Resultado paginado usando tipos de dominio en lugar de Spring Page
+        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(record), 1L, 1, 0, 50);
+        when(auditLogQueryPort.search(any(AuditLogFilter.class), any(PageRequest.class))).thenReturn(pagedResult);
 
-        Page<AuditLogRecord> result = service.search(new AuditLogFilter(null, null, null, null, null, null, null), PageRequest.of(0, 50));
+        PagedResult<AuditLogRecord> result = service.search(
+                new AuditLogFilter(null, null, null, null, null, null, null),
+                new PageRequest(0, 50));
 
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        verify(auditLogQueryPort).search(any(AuditLogFilter.class), any(org.springframework.data.domain.Pageable.class));
+        assertThat(result.totalElements()).isEqualTo(1);
+        verify(auditLogQueryPort).search(any(AuditLogFilter.class), any(PageRequest.class));
     }
 
     @Test
@@ -72,14 +74,15 @@ class GetAuditLogsServiceTest {
                 null,
                 null,
                 null);
-        Page<AuditLogRecord> page = new PageImpl<>(List.of(record));
-        when(auditLogQueryPort.search(any(AuditLogFilter.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(record), 1L, 1, 0, GetAuditLogsService.MAX_EXPORT_SIZE);
+        when(auditLogQueryPort.search(any(AuditLogFilter.class), any(PageRequest.class))).thenReturn(pagedResult);
 
         List<AuditLogRecord> result = service.export(new AuditLogFilter(null, null, null, null, null, null, null));
 
         assertThat(result).hasSize(1);
+        // Verifica que se usó el límite máximo de exportación
         verify(auditLogQueryPort).search(
                 any(AuditLogFilter.class),
-                org.mockito.ArgumentMatchers.argThat(p -> p.getPageSize() == GetAuditLogsService.MAX_EXPORT_SIZE));
+                org.mockito.ArgumentMatchers.argThat(p -> p.size() == GetAuditLogsService.MAX_EXPORT_SIZE));
     }
 }

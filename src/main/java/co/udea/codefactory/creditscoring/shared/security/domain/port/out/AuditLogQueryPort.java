@@ -1,12 +1,12 @@
 package co.udea.codefactory.creditscoring.shared.security.domain.port.out;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogFilter;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogRecord;
 
+// Puerto de salida para consulta paginada de logs de auditoría sin acoplamiento a Spring
 public interface AuditLogQueryPort {
 
-    Page<AuditLogRecord> search(AuditLogFilter filter, Pageable pageable);
+    PagedResult<AuditLogRecord> search(AuditLogFilter filter, PageRequest pageRequest);
 }

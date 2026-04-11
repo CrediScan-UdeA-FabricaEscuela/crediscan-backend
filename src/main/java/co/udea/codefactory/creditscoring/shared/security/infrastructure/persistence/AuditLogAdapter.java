@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 
 import jakarta.persistence.criteria.Predicate;
 
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogFilter;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogRecord;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
@@ -54,9 +56,23 @@ public class AuditLogAdapter implements AuditLogPort, AuditLogQueryPort {
     }
 
     @Override
-    public Page<AuditLogRecord> search(AuditLogFilter filter, Pageable pageable) {
-        return jpaRepository.findAll(buildSpecification(filter), pageable)
+    public PagedResult<AuditLogRecord> search(AuditLogFilter filter, PageRequest pageRequest) {
+        // Convierte el PageRequest de dominio al Pageable de Spring para la consulta JPA
+        Pageable springPageable = org.springframework.data.domain.PageRequest.of(
+                pageRequest.page(), pageRequest.size());
+        Page<AuditLogRecord> page = jpaRepository.findAll(buildSpecification(filter), springPageable)
                 .map(this::toAuditLogRecord);
+        return toPagedResult(page);
+    }
+
+    // Convierte Page de Spring a PagedResult de dominio
+    private <T> PagedResult<T> toPagedResult(Page<T> page) {
+        return new PagedResult<>(
+                page.getContent(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.getNumber(),
+                page.getSize());
     }
 
     private AuditLogRecord toAuditLogRecord(JpaAuditLogEntity entity) {

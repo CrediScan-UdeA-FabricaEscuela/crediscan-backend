@@ -8,13 +8,15 @@ import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
 
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenPort;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
+// Adaptador de infraestructura que implementa TokenPort usando JJWT
 @Service
-public class JwtService {
+public class JwtService implements TokenPort {
 
     private final JwtProperties jwtProperties;
 
@@ -22,6 +24,12 @@ public class JwtService {
         this.jwtProperties = jwtProperties;
     }
 
+    @Override
+    public long getExpirationMs() {
+        return jwtProperties.getExpirationMs();
+    }
+
+    @Override
     public String generateToken(AppUser user) {
         long now = System.currentTimeMillis();
         return Jwts.builder()

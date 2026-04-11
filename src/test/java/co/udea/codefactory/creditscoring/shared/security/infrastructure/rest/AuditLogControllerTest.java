@@ -2,7 +2,6 @@ package co.udea.codefactory.creditscoring.shared.security.infrastructure.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,14 +15,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.Authentication;
 
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogFilter;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogRecord;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.GetAuditLogsUseCase;
@@ -56,12 +53,13 @@ class AuditLogControllerTest {
                 "{}",
                 "{\"username\":\"admin\"}",
                 null);
-        Page<AuditLogRecord> page = new PageImpl<>(List.of(record), PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt")), 1);
-        when(getAuditLogsUseCase.search(any(AuditLogFilter.class), any(org.springframework.data.domain.Pageable.class))).thenReturn(page);
+        // Resultado paginado usando tipos de dominio
+        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(record), 1L, 1, 0, 50);
+        when(getAuditLogsUseCase.search(any(AuditLogFilter.class), any(PageRequest.class))).thenReturn(pagedResult);
 
         Authentication auth = new UsernamePasswordAuthenticationToken("admin", null,
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
-        Page<AuditLogResponse> response = controller.searchAuditLogs(
+        PagedResult<AuditLogResponse> response = controller.searchAuditLogs(
                 Instant.parse("2026-04-07T00:00:00Z"),
                 Instant.parse("2026-04-08T00:00:00Z"),
                 null,
@@ -69,11 +67,12 @@ class AuditLogControllerTest {
                 "USER",
                 null,
                 null,
-                PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt")),
+                0,
+                50,
                 auth).getBody();
 
-        assertThat(response.getTotalElements()).isEqualTo(1);
-        assertThat(response.getContent().get(0).accion()).isEqualTo("CREATE");
+        assertThat(response.totalElements()).isEqualTo(1);
+        assertThat(response.content().get(0).accion()).isEqualTo("CREATE");
         verify(getAuditLogsUseCase).search(any(AuditLogFilter.class), any(PageRequest.class));
     }
 
@@ -108,6 +107,7 @@ class AuditLogControllerTest {
         assertThat(csv).startsWith("timestamp,usuario_id,accion,recurso,recurso_id,datos_anteriores,datos_nuevos,ip,resultado,detalles");
         assertThat(csv).contains("analyst");
 
+        // Verifica que el filtro fuerza el actor del analista autenticado, ignorando el parámetro "admin"
         ArgumentCaptor<AuditLogFilter> filterCaptor = ArgumentCaptor.forClass(AuditLogFilter.class);
         verify(getAuditLogsUseCase).export(filterCaptor.capture());
         assertThat(filterCaptor.getValue().actor()).isEqualTo("analyst");

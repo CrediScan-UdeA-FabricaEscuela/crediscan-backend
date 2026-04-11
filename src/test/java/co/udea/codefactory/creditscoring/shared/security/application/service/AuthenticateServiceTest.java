@@ -25,17 +25,13 @@ import co.udea.codefactory.creditscoring.shared.security.domain.model.AuthResult
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
-import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtProperties;
-import co.udea.codefactory.creditscoring.shared.security.infrastructure.jwt.JwtService;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenPort;
 
 import java.util.List;
 import java.util.Optional;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticateServiceTest {
-
-    private static final String TEST_SECRET =
-            "dGVzdFNlY3JldEtleUZvckp3dDAxMjM0NTY3ODlBQkNERUY=";
 
     @Mock
     private AuthenticationManager authenticationManager;
@@ -46,22 +42,20 @@ class AuthenticateServiceTest {
     @Mock
     private AuditLogPort auditLog;
 
+    // Mock del puerto de tokens — sin dependencia a infraestructura JWT
+    @Mock
+    private TokenPort tokenPort;
+
     @Mock
     private Authentication authentication;
 
-    private JwtService jwtService;
     private AuthenticateService service;
 
     private AppUser adminUser;
 
     @BeforeEach
     void setUp() {
-        JwtProperties props = new JwtProperties();
-        props.setSecret(TEST_SECRET);
-        props.setExpirationMs(3_600_000L);
-
-        jwtService = new JwtService(props);
-        service = new AuthenticateService(authenticationManager, jwtService, props, userRepository, auditLog);
+        service = new AuthenticateService(authenticationManager, tokenPort, userRepository, auditLog);
 
         adminUser = new AppUser(
                 UUID.fromString("a0000000-0000-0000-0000-000000000001"),
@@ -73,7 +67,7 @@ class AuthenticateServiceTest {
                 false);
     }
 
-    // --- valid credentials return token with role ---
+    // --- credenciales válidas retornan token con rol ---
 
     @Test
     void authenticate_withValidCredentials_returnsTokenWithRole() {
@@ -83,6 +77,8 @@ class AuthenticateServiceTest {
                         null,
                         List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
+        when(tokenPort.generateToken(adminUser)).thenReturn("jwt-token-mock");
+        when(tokenPort.getExpirationMs()).thenReturn(3_600_000L);
 
         AuthResult result = service.authenticate("admin", "correct-password", "127.0.0.1");
 
