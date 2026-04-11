@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenBlacklistPort;
 
@@ -28,7 +27,6 @@ public class TokenBlacklistAdapter implements TokenBlacklistPort {
     }
 
     @Override
-    @Transactional
     public void blacklistByJti(String jti, UUID userId, Instant expiresAt, String reason) {
         JpaTokenBlacklistEntity entity = new JpaTokenBlacklistEntity();
         entity.setId(UUID.randomUUID());
@@ -41,7 +39,6 @@ public class TokenBlacklistAdapter implements TokenBlacklistPort {
     }
 
     @Override
-    @Transactional
     public void blacklistAllByUserId(UUID userId) {
         // Mark existing active tokens for user; for simplicity we set expiresAt = now
         // so they are effectively expired and blacklisted.

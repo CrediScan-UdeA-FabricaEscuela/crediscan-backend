@@ -14,7 +14,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
 
@@ -37,7 +36,6 @@ public class AuditLogAdapter implements AuditLogPort, AuditLogQueryPort {
     }
 
     @Override
-    @Transactional
     public void record(String entityType, UUID entityId, String action, String actor,
                        String actorIp, String result, Object dataBefore, Object dataAfter) {
         JpaAuditLogEntity entry = new JpaAuditLogEntity();
@@ -56,7 +54,6 @@ public class AuditLogAdapter implements AuditLogPort, AuditLogQueryPort {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public Page<AuditLogRecord> search(AuditLogFilter filter, Pageable pageable) {
         return jpaRepository.findAll(buildSpecification(filter), pageable)
                 .map(this::toAuditLogRecord);

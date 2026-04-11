@@ -25,6 +25,7 @@ repositories {
     mavenCentral()
 }
 
+val archunitVersion = "1.3.0"
 val jjwtVersion = "0.12.6"
 val mapstructVersion = "1.6.3"
 val springdocVersion = "2.8.4"
@@ -79,6 +80,7 @@ dependencies {
     testImplementation("io.cucumber:cucumber-junit-platform-engine:$cucumberVersion")
     testImplementation("io.cucumber:cucumber-spring:$cucumberVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
 }
 
 tasks.withType<Test> {
@@ -124,7 +126,10 @@ sonarqube {
 }
 
 tasks.withType<Test> {
-    environment("DOCKER_HOST", "unix:///mnt/wsl/docker-desktop-bind-mounts/Ubuntu-24.04/docker.sock")
+    // Only apply WSL Docker socket on local dev (not in CI)
+    if (System.getenv("CI") == null) {
+        environment("DOCKER_HOST", "unix:///mnt/wsl/docker-desktop-bind-mounts/Ubuntu-24.04/docker.sock")
+    }
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
     systemProperty("api.version", "1.41")
 }

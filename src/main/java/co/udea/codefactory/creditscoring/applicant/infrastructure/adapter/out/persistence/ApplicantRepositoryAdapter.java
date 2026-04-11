@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +18,7 @@ import co.udea.codefactory.creditscoring.applicant.domain.model.Applicant;
 import co.udea.codefactory.creditscoring.applicant.domain.model.EmploymentType;
 import co.udea.codefactory.creditscoring.applicant.domain.port.out.ApplicantRepositoryPort;
 import co.udea.codefactory.creditscoring.applicant.domain.port.out.IdentificationCryptoPort;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 
 @Component
 public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
@@ -73,14 +74,22 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
     }
 
     @Override
-    public Page<ApplicantSummary> search(String identificationHash, String nameCriteria, Pageable pageable) {
-        return jpaRepository.searchByHashOrName(identificationHash, nameCriteria, pageable)
+    public PagedResult<ApplicantSummary> search(String identificationHash, String nameCriteria,
+            co.udea.codefactory.creditscoring.shared.PageRequest pageRequest) {
+        org.springframework.data.domain.Pageable springPageable =
+                PageRequest.of(pageRequest.page(), pageRequest.size());
+        Page<ApplicantSummary> page = jpaRepository
+                .searchByHashOrName(identificationHash, nameCriteria, springPageable)
                 .map(this::toSummary);
+        return toPagedResult(page);
     }
 
     @Override
-    public Page<ApplicantSummary> findAll(Pageable pageable) {
-        return jpaRepository.findAll(pageable).map(this::toSummary);
+    public PagedResult<ApplicantSummary> findAll(co.udea.codefactory.creditscoring.shared.PageRequest pageRequest) {
+        org.springframework.data.domain.Pageable springPageable =
+                PageRequest.of(pageRequest.page(), pageRequest.size());
+        Page<ApplicantSummary> page = jpaRepository.findAll(springPageable).map(this::toSummary);
+        return toPagedResult(page);
     }
 
     @Override
@@ -129,6 +138,15 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
                 entity.getPhone(),
                 entity.getAddress(),
                 entity.getEmail());
+    }
+
+    private <T> PagedResult<T> toPagedResult(Page<T> page) {
+        return new PagedResult<>(
+                page.getContent(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.getNumber(),
+                page.getSize());
     }
 
     private String currentUsername() {

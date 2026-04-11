@@ -21,16 +21,13 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import co.udea.codefactory.creditscoring.applicant.domain.exception.ApplicantValidationException;
-import co.udea.codefactory.creditscoring.applicant.domain.exception.DuplicateApplicantException;
-import co.udea.codefactory.creditscoring.applicant.domain.exception.ImmutableFieldException;
-import co.udea.codefactory.creditscoring.financialdata.domain.exception.InvalidFinancialDataException;
-import co.udea.codefactory.creditscoring.shared.security.domain.exception.DuplicateUserException;
-import co.udea.codefactory.creditscoring.shared.security.domain.exception.InvalidCredentialsException;
-import co.udea.codefactory.creditscoring.shared.security.domain.exception.LastAdminException;
-
 /**
  * Global exception handler that produces RFC 7807 Problem Detail responses.
+ *
+ * <p>Domain exceptions are handled generically via {@link DomainException} — no imports
+ * from individual modules required (OCP compliant). To integrate a new module's exceptions,
+ * implement {@link DomainException} on each exception class and override
+ * {@link DomainException#httpStatusCode()} and {@link DomainException#errorCode()} as needed.</p>
  *
  * <p>Every error response includes a {@code traceId} (from MDC), {@code timestamp},
  * and a machine-readable {@code errorCode} for client-side error mapping.</p>
@@ -39,6 +36,7 @@ import co.udea.codefactory.creditscoring.shared.security.domain.exception.LastAd
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String BASE_ERROR_URI = "https://api.creditscoring.udea.co/errors/";
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
@@ -50,7 +48,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
             HttpStatus.BAD_REQUEST, "Validation failed");
         problem.setTitle("Validation Error");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/validation"));
+        problem.setType(URI.create(BASE_ERROR_URI + "validation"));
         problem.setProperty("errorCode", "VALIDATION_FAILED");
         problem.setProperty("traceId", MDC.get("traceId"));
         problem.setProperty("timestamp", Instant.now().toString());
@@ -62,90 +60,42 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                         "rejectedValue", fe.getRejectedValue() != null ? fe.getRejectedValue() : "null"))
                 .toList();
 
-            if (!fieldErrors.isEmpty()) {
-                Object message = fieldErrors.getFirst().get("message");
-                if (message instanceof String detailMessage) {
+        if (!fieldErrors.isEmpty()) {
+            Object message = fieldErrors.getFirst().get("message");
+            if (message instanceof String detailMessage) {
                 problem.setDetail(detailMessage);
-                }
             }
-        problem.setProperty("details", fieldErrors);
-
-        if (request instanceof ServletWebRequest servletRequest) {
-            problem.setProperty("path", servletRequest.getRequest().getRequestURI());
         }
+        problem.setProperty("details", fieldErrors);
+        enrichWithPath(problem, request);
 
         log.warn("Validation failed: {} field error(s)", fieldErrors.size());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
-    @ExceptionHandler(ImmutableFieldException.class)
-    public ProblemDetail handleImmutableField(ImmutableFieldException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Validation Error");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/immutable-field"));
-        problem.setProperty("errorCode", "IMMUTABLE_FIELD");
+    /**
+     * Generic handler for all {@link DomainException} implementations.
+     * HTTP status and error code are read from the exception itself.
+     * New modules only need to implement {@link DomainException} — no changes here required.
+     */
+    @ExceptionHandler(DomainException.class)
+    public ProblemDetail handleDomainException(DomainException ex, WebRequest request) {
+        HttpStatus httpStatus = HttpStatus.resolve(ex.httpStatusCode());
+        if (httpStatus == null) {
+            httpStatus = HttpStatus.BAD_REQUEST;
+        }
+        String slug = ex.errorCode().toLowerCase().replace('_', '-');
+        String message = ((Exception) ex).getMessage();
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(httpStatus, message);
+        problem.setTitle(httpStatus.getReasonPhrase());
+        problem.setType(URI.create(BASE_ERROR_URI + slug));
+        problem.setProperty("errorCode", ex.errorCode());
         problem.setProperty("traceId", MDC.get("traceId"));
         problem.setProperty("timestamp", Instant.now().toString());
         enrichWithPath(problem, request);
 
-        log.warn("Immutable field edit attempt: {}", ex.getFieldName());
-        return problem;
-    }
-
-    @ExceptionHandler(ApplicantValidationException.class)
-    public ProblemDetail handleApplicantValidation(ApplicantValidationException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Validation Error");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/validation"));
-        problem.setProperty("errorCode", "VALIDATION_FAILED");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
-        enrichWithPath(problem, request);
-
-        log.warn("Applicant validation error: {}", ex.getMessage());
-        return problem;
-    }
-
-    @ExceptionHandler(InvalidFinancialDataException.class)
-    public ProblemDetail handleInvalidFinancialData(InvalidFinancialDataException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Validation Error");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/validation"));
-        problem.setProperty("errorCode", "VALIDATION_FAILED");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
-        enrichWithPath(problem, request);
-
-        log.warn("Financial data validation error: {}", ex.getMessage());
-        return problem;
-    }
-
-    @ExceptionHandler(DuplicateApplicantException.class)
-    public ProblemDetail handleDuplicateApplicant(DuplicateApplicantException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
-        problem.setTitle("Conflict");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/conflict"));
-        problem.setProperty("errorCode", "DUPLICATE_RESOURCE");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
-        enrichWithPath(problem, request);
-
-        log.warn("Duplicate applicant: {}", ex.getMessage());
-        return problem;
-    }
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ProblemDetail handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.NOT_FOUND, ex.getMessage());
-        problem.setTitle("Resource Not Found");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/not-found"));
-        problem.setProperty("errorCode", "RESOURCE_NOT_FOUND");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
-        enrichWithPath(problem, request);
-
-        log.warn("Resource not found: {}", ex.getMessage());
+        log.warn("Domain exception [{}]: {}", ex.errorCode(), message);
         return problem;
     }
 
@@ -154,7 +104,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.FORBIDDEN, "No tiene permisos para acceder a este recurso");
         problem.setTitle("Access Denied");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/forbidden"));
+        problem.setType(URI.create(BASE_ERROR_URI + "forbidden"));
         problem.setProperty("errorCode", "ACCESS_DENIED");
         problem.setProperty("message", "No tiene permisos para acceder a este recurso");
         problem.setProperty("traceId", MDC.get("traceId"));
@@ -165,58 +115,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler(LastAdminException.class)
-    public ProblemDetail handleLastAdmin(LastAdminException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.CONFLICT, ex.getMessage());
-        problem.setTitle("Conflict");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/last-admin"));
-        problem.setProperty("errorCode", "LAST_ADMIN");
-        problem.setProperty("message", ex.getMessage());
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
-        enrichWithPath(problem, request);
-
-        log.warn("Last admin protection triggered: {}", ex.getMessage());
-        return problem;
-    }
-
-    @ExceptionHandler(DuplicateUserException.class)
-    public ProblemDetail handleDuplicateUser(DuplicateUserException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.CONFLICT, ex.getMessage());
-        problem.setTitle("Conflict");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/duplicate-user"));
-        problem.setProperty("errorCode", "DUPLICATE_USER");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
-        enrichWithPath(problem, request);
-
-        log.warn("Duplicate user: {}", ex.getMessage());
-        return problem;
-    }
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNAUTHORIZED, ex.getMessage());
-        problem.setTitle("Unauthorized");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/unauthorized"));
-        problem.setProperty("errorCode", "INVALID_CREDENTIALS");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
-        enrichWithPath(problem, request);
-
-        log.warn("Invalid credentials attempt");
-        return problem;
-    }
-
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGenericException(Exception ex, WebRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
         problem.setTitle("Internal Server Error");
-        problem.setType(URI.create("https://api.creditscoring.udea.co/errors/internal"));
+        problem.setType(URI.create(BASE_ERROR_URI + "internal"));
         problem.setProperty("errorCode", "INTERNAL_ERROR");
         problem.setProperty("traceId", MDC.get("traceId"));
         problem.setProperty("timestamp", Instant.now().toString());

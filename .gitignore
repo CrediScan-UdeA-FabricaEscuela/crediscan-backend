@@ -43,3 +43,12 @@ test-output/
 # Claude Code internals
 .claude/worktrees/
 .atl/
+
+.agents/
+
+# Configuración local de agentes IA (no versionar)
+.agent/
+.agents/
+.claude/
+.codex/
+openspec/

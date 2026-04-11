@@ -3,11 +3,10 @@ package co.udea.codefactory.creditscoring.applicant.domain.port.out;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import co.udea.codefactory.creditscoring.applicant.application.dto.ApplicantSummary;
 import co.udea.codefactory.creditscoring.applicant.domain.model.Applicant;
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 
 public interface ApplicantRepositoryPort {
 
@@ -17,9 +16,9 @@ public interface ApplicantRepositoryPort {
 
     Optional<Applicant> findById(UUID id);
 
-    Page<ApplicantSummary> search(String identificationHash, String nameCriteria, Pageable pageable);
+    PagedResult<ApplicantSummary> search(String identificationHash, String nameCriteria, PageRequest pageRequest);
 
-    Page<ApplicantSummary> findAll(Pageable pageable);
+    PagedResult<ApplicantSummary> findAll(PageRequest pageRequest);
 
     Applicant update(Applicant applicant);
 }

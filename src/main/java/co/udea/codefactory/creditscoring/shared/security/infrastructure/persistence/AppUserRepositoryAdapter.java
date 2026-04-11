@@ -5,7 +5,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
@@ -47,7 +46,6 @@ public class AppUserRepositoryAdapter implements AppUserRepositoryPort {
     }
 
     @Override
-    @Transactional
     public void updateRole(UUID userId, Role newRole) {
         jpaRepository.updateRole(userId, newRole);
     }

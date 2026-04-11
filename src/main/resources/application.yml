@@ -59,6 +59,9 @@ management:
     tags:
       application: ${spring.application.name}
 
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4200,http://localhost:5173}
+
 app:
   security:
     jwt:

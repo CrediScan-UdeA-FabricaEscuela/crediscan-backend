@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import co.udea.codefactory.creditscoring.applicant.application.dto.ApplicantSummary;
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.applicant.application.dto.UpdateApplicantResult;
 import co.udea.codefactory.creditscoring.applicant.domain.model.Applicant;
 import co.udea.codefactory.creditscoring.applicant.domain.port.in.RegisterApplicantUseCase;
@@ -92,8 +95,12 @@ public class ApplicantController {
     public ResponseEntity<Page<ApplicantSearchResponse>> searchApplicants(
             @RequestParam(value = "q", required = false) String criteria,
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        Page<ApplicantSummary> results = searchApplicantUseCase.search(criteria, pageable);
-        Page<ApplicantSearchResponse> response = results.map(applicantRestMapper::toSearchResponse);
+        PagedResult<ApplicantSummary> results = searchApplicantUseCase.search(
+                criteria, new PageRequest(pageable.getPageNumber(), pageable.getPageSize()));
+        Page<ApplicantSearchResponse> response = new PageImpl<>(
+                results.content().stream().map(applicantRestMapper::toSearchResponse).toList(),
+                pageable,
+                results.totalElements());
         return ResponseEntity.ok(response);
     }
 

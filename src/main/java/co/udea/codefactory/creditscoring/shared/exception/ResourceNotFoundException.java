@@ -6,7 +6,7 @@ package co.udea.codefactory.creditscoring.shared.exception;
  * <p>Handled globally by {@link GlobalExceptionHandler} to return a 404 response
  * with a standardized RFC 7807 Problem Detail body.</p>
  */
-public class ResourceNotFoundException extends RuntimeException {
+public class ResourceNotFoundException extends DomainException {
 
     private final String resourceName;
     private final String fieldName;
@@ -36,5 +36,15 @@ public class ResourceNotFoundException extends RuntimeException {
 
     public Object getFieldValue() {
         return fieldValue;
+    }
+
+    @Override
+    public int httpStatusCode() {
+        return 404;
+    }
+
+    @Override
+    public String errorCode() {
+        return "RESOURCE_NOT_FOUND";
     }
 }
