@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface JpaApplicantRepository extends JpaRepository<ApplicantJpaEntity, UUID> {
+interface JpaApplicantRepository extends JpaRepository<ApplicantJpaEntity, UUID>,
+        org.springframework.data.jpa.repository.JpaSpecificationExecutor<ApplicantJpaEntity> {
 
     boolean existsByIdentificationHash(String identificationHash);
 

@@ -1,6 +1,9 @@
 package co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest;
 
+import java.math.BigDecimal;
 import java.net.URI;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,7 +18,11 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -28,19 +35,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.udea.codefactory.creditscoring.applicant.application.dto.ApplicantFilterCriteria;
 import co.udea.codefactory.creditscoring.applicant.application.dto.ApplicantSummary;
-import co.udea.codefactory.creditscoring.shared.PageRequest;
-import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.applicant.application.dto.UpdateApplicantResult;
 import co.udea.codefactory.creditscoring.applicant.domain.model.Applicant;
+import co.udea.codefactory.creditscoring.applicant.domain.port.in.ListApplicantsUseCase;
 import co.udea.codefactory.creditscoring.applicant.domain.port.in.RegisterApplicantUseCase;
-import co.udea.codefactory.creditscoring.applicant.domain.port.in.SearchApplicantUseCase;
 import co.udea.codefactory.creditscoring.applicant.domain.port.in.UpdateApplicantUseCase;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.ApplicantSearchResponse;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.RegisterApplicantRequest;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.RegisterApplicantResponse;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.UpdateApplicantRequest;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.UpdateApplicantResponse;
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 
 @RestController
 @RequestMapping("/api/v1/solicitantes")
@@ -48,17 +56,17 @@ import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.res
 public class ApplicantController {
 
     private final RegisterApplicantUseCase registerApplicantUseCase;
-    private final SearchApplicantUseCase searchApplicantUseCase;
+    private final ListApplicantsUseCase listApplicantsUseCase;
     private final UpdateApplicantUseCase updateApplicantUseCase;
     private final ApplicantRestMapper applicantRestMapper;
 
     public ApplicantController(
             RegisterApplicantUseCase registerApplicantUseCase,
-            SearchApplicantUseCase searchApplicantUseCase,
+            ListApplicantsUseCase listApplicantsUseCase,
             UpdateApplicantUseCase updateApplicantUseCase,
             ApplicantRestMapper applicantRestMapper) {
         this.registerApplicantUseCase = registerApplicantUseCase;
-        this.searchApplicantUseCase = searchApplicantUseCase;
+        this.listApplicantsUseCase = listApplicantsUseCase;
         this.updateApplicantUseCase = updateApplicantUseCase;
         this.applicantRestMapper = applicantRestMapper;
     }
@@ -85,23 +93,74 @@ public class ApplicantController {
 
     @GetMapping
     @PreAuthorize("hasRole('ANALYST') or hasRole('RISK_MANAGER') or hasRole('ADMIN') or hasRole('CREDIT_SUPERVISOR')")
-    @Operation(summary = "Buscar solicitantes",
-               description = "Busca por identificación (hash exacto) o nombre (parcial, case-insensitive). Sin q retorna todos.")
+    @Operation(summary = "Listar solicitantes con filtros",
+               description = "Retorna un listado paginado de solicitantes con filtros combinables. "
+                           + "Todos los parámetros son opcionales y se combinan con lógica AND.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Búsqueda exitosa"),
+        @ApiResponse(responseCode = "200", description = "Listado retornado exitosamente"),
         @ApiResponse(responseCode = "403", description = "Acceso denegado",
                 content = @Content(schema = @Schema(implementation = org.springframework.http.ProblemDetail.class)))
     })
-    public ResponseEntity<Page<ApplicantSearchResponse>> searchApplicants(
-            @RequestParam(value = "q", required = false) String criteria,
+    public ResponseEntity<Page<ApplicantSearchResponse>> listApplicants(
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "ingresos_min", required = false) BigDecimal incomeMin,
+            @RequestParam(value = "ingresos_max", required = false) BigDecimal incomeMax,
+            @RequestParam(value = "tipo_empleo", required = false) String employmentType,
+            @RequestParam(value = "antiguedad_min", required = false) Integer experienceMin,
+            @RequestParam(value = "antiguedad_max", required = false) Integer experienceMax,
+            @RequestParam(value = "fecha_registro_desde", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registrationDateFrom,
+            @RequestParam(value = "fecha_registro_hasta", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registrationDateTo,
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        PagedResult<ApplicantSummary> results = searchApplicantUseCase.search(
+
+        ApplicantFilterCriteria criteria = construirCriterios(
+                q, incomeMin, incomeMax, employmentType, experienceMin, experienceMax,
+                registrationDateFrom, registrationDateTo, pageable);
+
+        PagedResult<ApplicantSummary> results = listApplicantsUseCase.list(
                 criteria, new PageRequest(pageable.getPageNumber(), pageable.getPageSize()));
+
         Page<ApplicantSearchResponse> response = new PageImpl<>(
                 results.content().stream().map(applicantRestMapper::toSearchResponse).toList(),
                 pageable,
                 results.totalElements());
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('ANALYST') or hasRole('CREDIT_SUPERVISOR')")
+    @Operation(summary = "Exportar solicitantes en CSV",
+               description = "Exporta en formato CSV el listado de solicitantes filtrado. "
+                           + "Limitado a 10.000 registros. Solo accesible para ANALYST y CREDIT_SUPERVISOR.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Archivo CSV generado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado",
+                content = @Content(schema = @Schema(implementation = org.springframework.http.ProblemDetail.class)))
+    })
+    public ResponseEntity<String> exportApplicants(
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "ingresos_min", required = false) BigDecimal incomeMin,
+            @RequestParam(value = "ingresos_max", required = false) BigDecimal incomeMax,
+            @RequestParam(value = "tipo_empleo", required = false) String employmentType,
+            @RequestParam(value = "antiguedad_min", required = false) Integer experienceMin,
+            @RequestParam(value = "antiguedad_max", required = false) Integer experienceMax,
+            @RequestParam(value = "fecha_registro_desde", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registrationDateFrom,
+            @RequestParam(value = "fecha_registro_hasta", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registrationDateTo) {
+
+        ApplicantFilterCriteria criteria = construirCriterios(
+                q, incomeMin, incomeMax, employmentType, experienceMin, experienceMax,
+                registrationDateFrom, registrationDateTo, null);
+
+        List<ApplicantSummary> solicitantes = listApplicantsUseCase.export(criteria);
+        String csv = construirCsv(solicitantes);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=solicitantes.csv")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(csv);
     }
 
     @PatchMapping("/{id}")
@@ -124,5 +183,65 @@ public class ApplicantController {
         UpdateApplicantResult result = updateApplicantUseCase.update(
                 applicantRestMapper.toUpdateCommand(id, request, authentication.getName()));
         return ResponseEntity.ok(applicantRestMapper.toUpdateResponse(result));
+    }
+
+    /**
+     * Ensambla el objeto de criterios a partir de los parámetros individuales del request.
+     * Extrae el campo y dirección de ordenamiento del Pageable de Spring cuando está disponible.
+     */
+    private ApplicantFilterCriteria construirCriterios(
+            String q, BigDecimal incomeMin, BigDecimal incomeMax, String employmentType,
+            Integer experienceMin, Integer experienceMax,
+            LocalDate registrationDateFrom, LocalDate registrationDateTo,
+            Pageable pageable) {
+
+        String campoCriteria = null;
+        String direccionCriteria = null;
+
+        if (pageable != null && pageable.getSort().isSorted()) {
+            Sort.Order orden = pageable.getSort().iterator().next();
+            campoCriteria = orden.getProperty();
+            direccionCriteria = orden.getDirection().name();
+        }
+
+        return new ApplicantFilterCriteria(
+                q, incomeMin, incomeMax, employmentType,
+                experienceMin, experienceMax,
+                registrationDateFrom, registrationDateTo,
+                campoCriteria, direccionCriteria);
+    }
+
+    /**
+     * Construye el contenido CSV a partir de la lista de solicitantes.
+     * Sigue el mismo patrón de {@code AuditLogController.buildCsv()}.
+     */
+    private String construirCsv(List<ApplicantSummary> solicitantes) {
+        String encabezado = "nombre,identificacion,fecha_nacimiento,tipo_empleo,"
+                + "ingresos_mensuales,antiguedad_laboral,telefono,direccion,correo_electronico";
+        StringBuilder csv = new StringBuilder(encabezado);
+        for (ApplicantSummary s : solicitantes) {
+            csv.append('\n')
+               .append(escaparCsv(s.name())).append(',')
+               .append(escaparCsv(s.identification())).append(',')
+               .append(s.birthDate() != null ? s.birthDate().toString() : "").append(',')
+               .append(escaparCsv(s.employmentType())).append(',')
+               .append(s.monthlyIncome() != null ? s.monthlyIncome().toPlainString() : "").append(',')
+               .append(s.workExperienceMonths() != null ? s.workExperienceMonths().toString() : "").append(',')
+               .append(escaparCsv(s.phone())).append(',')
+               .append(escaparCsv(s.address())).append(',')
+               .append(escaparCsv(s.email()));
+        }
+        return csv.toString();
+    }
+
+    private String escaparCsv(String valor) {
+        if (valor == null) {
+            return "";
+        }
+        String escapado = valor.replace("\"", "\"\"");
+        if (escapado.contains(",") || escapado.contains("\n") || escapado.contains("\"") || escapado.contains("\r")) {
+            return '"' + escapado + '"';
+        }
+        return escapado;
     }
 }

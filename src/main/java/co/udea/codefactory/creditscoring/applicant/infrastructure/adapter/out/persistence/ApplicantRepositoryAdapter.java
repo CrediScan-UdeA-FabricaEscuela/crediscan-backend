@@ -3,16 +3,20 @@ package co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.out.p
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import co.udea.codefactory.creditscoring.applicant.application.dto.ApplicantFilterCriteria;
 import co.udea.codefactory.creditscoring.applicant.application.dto.ApplicantSummary;
 import co.udea.codefactory.creditscoring.applicant.domain.model.Applicant;
 import co.udea.codefactory.creditscoring.applicant.domain.model.EmploymentType;
@@ -147,6 +151,61 @@ public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
                 page.getTotalPages(),
                 page.getNumber(),
                 page.getSize());
+    }
+
+    @Override
+    public PagedResult<ApplicantSummary> findByFilter(ApplicantFilterCriteria criteria,
+            String identificationHash,
+            co.udea.codefactory.creditscoring.shared.PageRequest pageRequest) {
+        Specification<ApplicantJpaEntity> spec = ApplicantSpecifications.build(criteria, identificationHash);
+        Sort sort = construirOrdenamiento(criteria);
+        org.springframework.data.domain.Pageable springPageable =
+                PageRequest.of(pageRequest.page(), pageRequest.size(), sort);
+        Page<ApplicantSummary> page = jpaRepository.findAll(spec, springPageable).map(this::toSummary);
+        return toPagedResult(page);
+    }
+
+    @Override
+    public List<ApplicantSummary> findAllByFilter(ApplicantFilterCriteria criteria,
+            String identificationHash,
+            int maxResults) {
+        Specification<ApplicantJpaEntity> spec = ApplicantSpecifications.build(criteria, identificationHash);
+        Sort sort = construirOrdenamiento(criteria);
+        // Se usa una sola página con el límite máximo; no se cargan todos en memoria de golpe
+        org.springframework.data.domain.Pageable springPageable = PageRequest.of(0, maxResults, sort);
+        return jpaRepository.findAll(spec, springPageable)
+                .map(this::toSummary)
+                .getContent();
+    }
+
+    /**
+     * Construye el criterio de ordenamiento a partir de los campos del filtro.
+     * Aplica un mapeo de nombres de API (español) a nombres de campo en la entidad JPA.
+     */
+    private Sort construirOrdenamiento(ApplicantFilterCriteria criteria) {
+        String campo = resolverCampoOrdenamiento(criteria.sortField());
+        Sort.Direction direccion = "DESC".equalsIgnoreCase(criteria.sortDirection())
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+        return Sort.by(direccion, campo);
+    }
+
+    /**
+     * Convierte el nombre de campo recibido desde la API al nombre de campo de la entidad JPA.
+     * Si el campo no tiene mapeo conocido, se usa directamente (para campos en inglés ya correctos).
+     */
+    private String resolverCampoOrdenamiento(String campoCriterio) {
+        if (campoCriterio == null || campoCriterio.isBlank()) {
+            return "name";
+        }
+        return switch (campoCriterio) {
+            case "nombre" -> "name";
+            case "ingresos_mensuales" -> "monthlyIncome";
+            case "antiguedad_laboral" -> "workExperienceMonths";
+            case "fecha_registro" -> "createdAt";
+            case "tipo_empleo" -> "employmentType";
+            default -> campoCriterio;
+        };
     }
 
     private String currentUsername() {
