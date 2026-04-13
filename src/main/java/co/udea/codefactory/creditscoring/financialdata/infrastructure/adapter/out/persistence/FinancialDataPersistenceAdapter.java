@@ -1,5 +1,6 @@
 package co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +32,14 @@ public class FinancialDataPersistenceAdapter implements FinancialDataRepositoryP
     public Optional<FinancialData> findByApplicantIdAndVersion(UUID applicantId, int version) {
         return jpaRepository.findByApplicantIdAndVersion(applicantId, version)
                 .map(this::toDomain);
+    }
+
+    @Override
+    public List<FinancialData> findAllByApplicantId(UUID applicantId) {
+        return jpaRepository.findAllByApplicantIdOrderByVersionDesc(applicantId)
+                .stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     @Override
