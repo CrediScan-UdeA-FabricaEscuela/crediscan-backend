@@ -89,6 +89,14 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "RISK_MANAGER")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/variables-scoring/**")
                             .hasAnyRole("ADMIN", "RISK_MANAGER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/modelos-scoring")
+                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/modelos-scoring/**")
+                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/modelos-scoring/*/reglas-knockout")
+                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/modelos-scoring/**")
+                            .hasAnyRole("ADMIN", "RISK_MANAGER")
                         // All other requests require authentication — fine-grained via @PreAuthorize
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

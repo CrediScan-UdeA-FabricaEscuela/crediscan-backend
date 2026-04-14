@@ -43,7 +43,9 @@ class ScoringVariableIntegrationTest {
 
     @BeforeEach
     void limpiar() {
-        // Eliminar en orden correcto por FK: rangos/categorías → variable
+        // Eliminar en orden correcto por FK: model_variable → variable_range/category → variable
+        jdbcTemplate.update("DELETE FROM model_variable");
+        jdbcTemplate.update("DELETE FROM scoring_model WHERE created_by = 'user'");
         jdbcTemplate.update("DELETE FROM variable_range");
         jdbcTemplate.update("DELETE FROM variable_category");
         // Solo las variables creadas en los tests (no las del seed de V15)
