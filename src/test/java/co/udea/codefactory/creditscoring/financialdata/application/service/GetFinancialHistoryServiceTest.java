@@ -179,9 +179,11 @@ class GetFinancialHistoryServiceTest {
     }
 
     @Test
-    void comparar_conDeudaMenorEnVersionNueva_clasificaComoMejora() {
-        FinancialData base = datosFinancierosConDeuda(SOLICITANTE_ID, 1, new BigDecimal("10000000"));
-        FinancialData mejor = datosFinancierosConDeuda(SOLICITANTE_ID, 2, new BigDecimal("5000000"));
+    void comparar_conDeudaMenorYScoreMayorEnVersionNueva_clasificaComoMejora() {
+        // RN1: MEJORA requiere ratio↓ Y score↑ simultáneamente
+        FinancialData base = datosFinancierosConDeuda(SOLICITANTE_ID, 1, new BigDecimal("10000000")); // score=720
+        FinancialData mejor = datosFinancierosConDeudaYScore(SOLICITANTE_ID, 2,
+                new BigDecimal("5000000"), 780); // deuda↓ y score↑
 
         when(applicantRepositoryPort.findById(SOLICITANTE_ID))
                 .thenReturn(Optional.of(solicitanteEjemplo()));
@@ -253,6 +255,19 @@ class GetFinancialHistoryServiceTest {
                 new BigDecimal("20000000"),
                 new BigDecimal("15000000"),
                 false, 12, 1, 2, 720, 3,
+                AHORA, AHORA);
+    }
+
+    private FinancialData datosFinancierosConDeudaYScore(
+            UUID solicitanteId, int version, BigDecimal deuda, Integer bureauScore) {
+        return new FinancialData(
+                UUID.randomUUID(), solicitanteId, version,
+                new BigDecimal("36000000"),
+                new BigDecimal("2000000"),
+                deuda,
+                new BigDecimal("20000000"),
+                new BigDecimal("15000000"),
+                false, 12, 1, 2, bureauScore, 3,
                 AHORA, AHORA);
     }
 }

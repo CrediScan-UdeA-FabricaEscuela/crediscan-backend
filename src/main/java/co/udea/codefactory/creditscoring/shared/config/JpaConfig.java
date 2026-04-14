@@ -15,14 +15,16 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     basePackages = {
         "co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.out.persistence",
         "co.udea.codefactory.creditscoring.shared.security.infrastructure.persistence",
-        "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence"
+        "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence",
+        "co.udea.codefactory.creditscoring.scoring.infrastructure.adapter.out.persistence"
     },
     enableDefaultTransactions = true
 )
 @EntityScan(basePackages = {
     "co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.out.persistence",
     "co.udea.codefactory.creditscoring.shared.security.infrastructure.persistence",
-    "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence"
+    "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence",
+    "co.udea.codefactory.creditscoring.scoring.infrastructure.adapter.out.persistence"
 })
 public class JpaConfig {
 }
