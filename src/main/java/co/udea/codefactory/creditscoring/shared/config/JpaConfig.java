@@ -18,7 +18,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence",
         "co.udea.codefactory.creditscoring.scoring.infrastructure.adapter.out.persistence",
         "co.udea.codefactory.creditscoring.scoringmodel.infrastructure.adapter.out.persistence",
-        "co.udea.codefactory.creditscoring.scoringengine.infrastructure.adapter.out.persistence"
+        "co.udea.codefactory.creditscoring.scoringengine.infrastructure.adapter.out.persistence",
+        "co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence"
     },
     enableDefaultTransactions = true
 )
@@ -28,7 +29,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence",
     "co.udea.codefactory.creditscoring.scoring.infrastructure.adapter.out.persistence",
     "co.udea.codefactory.creditscoring.scoringmodel.infrastructure.adapter.out.persistence",
-    "co.udea.codefactory.creditscoring.scoringengine.infrastructure.adapter.out.persistence"
+    "co.udea.codefactory.creditscoring.scoringengine.infrastructure.adapter.out.persistence",
+    "co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence"
 })
 public class JpaConfig {
 }

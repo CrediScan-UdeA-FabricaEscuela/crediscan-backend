@@ -65,6 +65,9 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 
+    // PDF generation
+    implementation("com.github.librepdf:openpdf:2.0.3")
+
     // Observability & Logging
     implementation("net.logstash.logback:logstash-logback-encoder:$logstashEncoderVersion")
     implementation("io.micrometer:micrometer-registry-prometheus")
