@@ -97,6 +97,13 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "RISK_MANAGER")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/modelos-scoring/**")
                             .hasAnyRole("ADMIN", "RISK_MANAGER")
+                        // Simulación: todos los endpoints requieren autenticación (ANALYST también puede simular)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/scoring/simular")
+                            .hasAnyRole("ADMIN", "ANALYST", "RISK_MANAGER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/scoring/simulaciones")
+                            .hasAnyRole("ADMIN", "ANALYST", "RISK_MANAGER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/scoring/simulaciones/*/ejecutar")
+                            .hasAnyRole("ADMIN", "ANALYST", "RISK_MANAGER")
                         // All other requests require authentication — fine-grained via @PreAuthorize
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

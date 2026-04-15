@@ -17,7 +17,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         "co.udea.codefactory.creditscoring.shared.security.infrastructure.persistence",
         "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence",
         "co.udea.codefactory.creditscoring.scoring.infrastructure.adapter.out.persistence",
-        "co.udea.codefactory.creditscoring.scoringmodel.infrastructure.adapter.out.persistence"
+        "co.udea.codefactory.creditscoring.scoringmodel.infrastructure.adapter.out.persistence",
+        "co.udea.codefactory.creditscoring.scoringengine.infrastructure.adapter.out.persistence"
     },
     enableDefaultTransactions = true
 )
@@ -26,8 +27,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     "co.udea.codefactory.creditscoring.shared.security.infrastructure.persistence",
     "co.udea.codefactory.creditscoring.financialdata.infrastructure.adapter.out.persistence",
     "co.udea.codefactory.creditscoring.scoring.infrastructure.adapter.out.persistence",
-    "co.udea.codefactory.creditscoring.scoringmodel.infrastructure.adapter.out.persistence"
-    // scoringengine no tiene tablas propias — usa puertos de otros BCs
+    "co.udea.codefactory.creditscoring.scoringmodel.infrastructure.adapter.out.persistence",
+    "co.udea.codefactory.creditscoring.scoringengine.infrastructure.adapter.out.persistence"
 })
 public class JpaConfig {
 }

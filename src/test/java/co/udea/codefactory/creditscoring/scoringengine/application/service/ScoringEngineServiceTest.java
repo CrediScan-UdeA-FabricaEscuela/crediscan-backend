@@ -43,7 +43,10 @@ class ScoringEngineServiceTest {
     // Extractor es un componente sin dependencias — lo instanciamos directamente
     private final FinancialDataValueExtractor extractor = new FinancialDataValueExtractor();
 
-    // Construimos el servicio manualmente para poder pasar el extractor real
+    // ScoringCalculator recibe koRepo y variableRepo como mocks
+    private ScoringCalculator calculator;
+
+    // Construimos el servicio manualmente para poder pasar el extractor y calculator reales
     private ScoringEngineService service;
 
     private static final UUID APLICANTE_ID = UUID.randomUUID();
@@ -52,8 +55,8 @@ class ScoringEngineServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        service = new ScoringEngineService(
-                modeloRepo, koRepo, variableRepo, financialDataRepo, extractor);
+        calculator = new ScoringCalculator(koRepo, variableRepo);
+        service = new ScoringEngineService(modeloRepo, financialDataRepo, extractor, calculator);
     }
 
     // =========================================================================
