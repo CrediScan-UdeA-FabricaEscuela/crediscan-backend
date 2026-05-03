@@ -57,8 +57,8 @@ public record Evaluation(
      * Genera id y timestamps automáticamente.
      */
     public static Evaluation crear(UUID applicantId, UUID modelId, UUID financialDataId,
-            BigDecimal totalScore, RiskLevel riskLevel, boolean knockedOut, String knockoutReasons,
-            String evaluatedBy, List<EvaluationDetail> details, List<EvaluationKnockout> knockouts) {
+                                   BigDecimal totalScore, RiskLevel riskLevel, boolean knockedOut, String knockoutReasons,
+                                   String evaluatedBy, List<EvaluationDetail> details, List<EvaluationKnockout> knockouts) {
         OffsetDateTime ahora = OffsetDateTime.now();
         return new Evaluation(UUID.randomUUID(), applicantId, modelId, financialDataId,
                 totalScore, riskLevel, knockedOut, knockoutReasons,
@@ -70,11 +70,21 @@ public record Evaluation(
      * No genera ids ni timestamps nuevos.
      */
     public static Evaluation rehydrate(UUID id, UUID applicantId, UUID modelId, UUID financialDataId,
-            BigDecimal totalScore, RiskLevel riskLevel, boolean knockedOut, String knockoutReasons,
-            OffsetDateTime evaluatedAt, String evaluatedBy, OffsetDateTime createdAt, String createdBy,
-            List<EvaluationDetail> details, List<EvaluationKnockout> knockouts) {
+                                       BigDecimal totalScore, RiskLevel riskLevel, boolean knockedOut, String knockoutReasons,
+                                       OffsetDateTime evaluatedAt, String evaluatedBy, OffsetDateTime createdAt, String createdBy,
+                                       List<EvaluationDetail> details, List<EvaluationKnockout> knockouts) {
         return new Evaluation(id, applicantId, modelId, financialDataId,
                 totalScore, riskLevel, knockedOut, knockoutReasons,
                 evaluatedAt, evaluatedBy, createdAt, createdBy, details, knockouts);
     }
+
+    public boolean isKnockout() {
+        return this.knockedOut;
+    }
+
+    public boolean isAssignedTo(String analyst) {
+        if (analyst == null || this.evaluatedBy == null) return false;
+        return this.evaluatedBy.trim().equalsIgnoreCase(analyst.trim());
+    }
+
 }
