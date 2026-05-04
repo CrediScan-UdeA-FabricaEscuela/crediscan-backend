@@ -116,10 +116,13 @@ RegisterApplicantService     ← Servicio de aplicación
 |--------|--------|-----------------|
 | `applicant` | Implementado | Registro, búsqueda y edición de solicitantes de crédito |
 | `financialdata` | Parcialmente implementado | Captura y versionado de datos financieros del solicitante |
+| `scoring` | Implementado | Variables de scoring: definición, tipos, rangos y categorías |
+| `scoringmodel` | Implementado | Modelos de scoring: creación, activación, reglas KO |
+| `scoringengine` | Implementado | Motor de cálculo de scoring y modo de simulación |
+| `evaluation` | Implementado | Ejecución de evaluaciones crediticias y generación de PDF |
+| `creditdecision` | Implementado | Registro de decisiones finales sobre evaluaciones |
 | `shared/security` | Implementado | Autenticación JWT, RBAC, gestión de usuarios |
 | `shared/audit` | Implementado | Trazabilidad de eventos críticos del sistema |
-| `evaluation` | Stub | Evaluación crediticia: corre el scoring model |
-| `scoring` | Stub | Gestión de modelos y variables de scoring |
 | `reporting` | Stub | Reportes de distribución de riesgo y estadísticas |
 
 ### Estructura de packages
@@ -182,17 +185,153 @@ co.udea.codefactory.creditscoring/
 │               └── metrics/
 │                   └── ApplicantRegistrationMetricsAdapter.java
 │
-├── evaluation/                         ← STUB — tablas creadas, lógica pendiente
-│   └── infrastructure/adapter/in/rest/
-│       └── EvaluationController.java
+├── scoring/                            ← Bounded context: Variables de scoring
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── ScoringVariable.java    ← Aggregate root
+│   │   │   ├── VariableType.java       ← NUMERIC | CATEGORICAL
+│   │   │   ├── VariableRange.java
+│   │   │   └── VariableCategory.java
+│   │   ├── port/
+│   │   │   ├── in/                     ← Create / Get / Update use cases
+│   │   │   └── out/
+│   │   │       └── ScoringVariableRepositoryPort.java
+│   │   └── exception/
+│   │       └── ScoringVariableValidationException.java
+│   ├── application/
+│   │   ├── dto/                        ← Request/response DTOs (con @Valid)
+│   │   └── service/
+│   │       ├── ScoringVariableCommandService.java
+│   │       └── ScoringVariableQueryService.java
+│   └── infrastructure/
+│       └── adapter/
+│           ├── in/rest/
+│           │   ├── ScoringVariableController.java
+│           │   └── ScoringVariableRestMapper.java
+│           └── out/persistence/        ← JpaEntity + Repository + Adapter (variable + range + category)
+│
+├── scoringmodel/                       ← Bounded context: Modelos y reglas KO
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── ScoringModel.java       ← Aggregate root (DRAFT → ACTIVE → INACTIVE)
+│   │   │   ├── ModelStatus.java        ← DRAFT | ACTIVE | INACTIVE
+│   │   │   ├── ModelVariable.java
+│   │   │   ├── KnockoutRule.java
+│   │   │   └── KnockoutOperator.java   ← GT | LT | GTE | LTE | EQ | NEQ
+│   │   ├── port/
+│   │   │   ├── in/                     ← Create / Activate / Get / Compare / ManageKO use cases
+│   │   │   └── out/
+│   │   │       ├── ScoringModelRepositoryPort.java
+│   │   │       └── KnockoutRuleRepositoryPort.java
+│   │   └── exception/
+│   │       └── ScoringModelValidationException.java
+│   ├── application/
+│   │   ├── dto/
+│   │   └── service/
+│   │       ├── ScoringModelCommandService.java
+│   │       ├── ScoringModelQueryService.java
+│   │       └── KnockoutRuleService.java
+│   └── infrastructure/
+│       └── adapter/
+│           ├── in/rest/
+│           │   ├── ScoringModelController.java
+│           │   └── KnockoutRuleController.java
+│           └── out/persistence/
+│
+├── scoringengine/                      ← Bounded context: Motor de cálculo y simulación
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── ScoringResult.java
+│   │   │   ├── VariableScoreDetail.java
+│   │   │   ├── KnockoutEvaluationDetail.java
+│   │   │   └── SimulationScenario.java
+│   │   └── port/
+│   │       ├── in/                     ← Calculate / Simulate / Scenario use cases
+│   │       └── out/
+│   │           └── SimulationScenarioRepositoryPort.java
+│   ├── application/
+│   │   ├── dto/
+│   │   └── service/
+│   │       ├── ScoringEngineService.java
+│   │       ├── ScoringSimulationService.java
+│   │       ├── ScoringCalculator.java              ← Cálculo ponderado + KO evaluation
+│   │       └── FinancialDataValueExtractor.java
+│   └── infrastructure/
+│       └── adapter/
+│           ├── in/rest/
+│           │   ├── ScoringEngineController.java
+│           │   └── ScoringSimulationController.java
+│           └── out/persistence/        ← SimulationScenario JPA
+│
+├── evaluation/                         ← Bounded context: Evaluaciones crediticias
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── Evaluation.java         ← Aggregate root
+│   │   │   ├── EvaluationDetail.java   ← Detalle por variable
+│   │   │   ├── EvaluationKnockout.java ← Reglas KO evaluadas
+│   │   │   └── RiskLevel.java          ← VERY_LOW | LOW | MEDIUM | HIGH | VERY_HIGH | REJECTED
+│   │   ├── port/
+│   │   │   ├── in/                     ← Execute / Get / GetReport use cases
+│   │   │   └── out/
+│   │   │       ├── EvaluationRepositoryPort.java
+│   │   │       └── EvaluationReportPort.java
+│   │   └── exception/
+│   │       ├── ApplicantNoFinancialDataException.java
+│   │       └── EvaluationCooldownException.java
+│   ├── application/
+│   │   ├── dto/
+│   │   └── service/
+│   │       ├── ExecuteEvaluationService.java
+│   │       ├── GetEvaluationService.java
+│   │       └── GetEvaluationReportService.java
+│   └── infrastructure/
+│       └── adapter/
+│           ├── in/rest/
+│           │   └── EvaluationController.java
+│           └── out/
+│               ├── persistence/
+│               └── pdf/
+│                   └── PdfEvaluationReportAdapter.java
+│
+├── creditdecision/                     ← Bounded context: Decisiones crediticias
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── CreditDecision.java     ← Aggregate root (inmutable una vez registrada)
+│   │   │   └── DecisionStatus.java     ← APPROVED | REJECTED | MANUAL_REVIEW | ESCALATED
+│   │   ├── port/
+│   │   │   ├── in/
+│   │   │   │   └── RegisterCreditDecisionUseCase.java
+│   │   │   └── out/
+│   │   │       ├── CreditDecisionRepositoryPort.java
+│   │   │       └── EscalationNotificationPort.java
+│   │   └── exception/
+│   │       ├── CreditDecisionAlreadyExistsException.java
+│   │       ├── CreditDecisionKnockoutException.java
+│   │       └── CreditDecisionValidationException.java
+│   ├── application/
+│   │   ├── dto/
+│   │   │   └── RegisterCreditDecisionCommand.java
+│   │   └── service/
+│   │       └── RegisterCreditDecisionService.java
+│   └── infrastructure/
+│       └── adapter/
+│           ├── in/rest/
+│           │   ├── CreditDecisionController.java
+│           │   └── dto/
+│           │       ├── RegisterCreditDecisionRequest.java
+│           │       └── CreditDecisionResponse.java
+│           └── out/
+│               ├── persistence/
+│               │   ├── CreditDecisionJpaEntity.java
+│               │   ├── JpaCreditDecisionRepository.java
+│               │   ├── CreditDecisionRepositoryAdapter.java
+│               │   └── CreditDecisionPersistenceMapper.java
+│               └── notification/
+│                   └── LoggingEscalationNotificationAdapter.java
 │
 ├── reporting/                          ← STUB
 │   └── infrastructure/adapter/in/rest/
 │       └── ReportController.java
-│
-├── scoring/                            ← STUB
-│   └── infrastructure/adapter/in/rest/
-│       └── ScoringVariableController.java
 │
 └── shared/
     ├── PagedResult.java                ← Record de paginación sin dependencias Spring
@@ -378,19 +517,126 @@ public record FinancialData(UUID id, UUID applicantId, int version,
 
 ---
 
-### EVALUATION — Stub
+### SCORING — Implementado
 
-- **Tablas creadas:** `evaluation`, `evaluation_detail`, `evaluation_knockout`
-- **Controller stub:** `GET /api/v1/evaluaciones`, `POST /api/v1/evaluaciones`
-- **Pendiente:** lógica de negocio, puertos, adaptadores
+Gestión de variables de scoring: definición, pesos, rangos numéricos y categorías.
+
+```java
+public record ScoringVariable(UUID id, String nombre, String descripcion,
+                               VariableType tipo, BigDecimal peso, boolean activa,
+                               List<VariableRange> rangos, List<VariableCategory> categorias)
+// Validaciones:
+// - nombre obligatorio y único en BD
+// - tipo: NUMERIC o CATEGORICAL
+// - peso: 0.01–1.00
+// - rangos válidos para NUMERIC: contiguos, sin solapamientos, desde 0
+```
+
+**Endpoints:** `POST /api/v1/variables-scoring` · `PUT /api/v1/variables-scoring/{id}` · `GET /api/v1/variables-scoring`
 
 ---
 
-### SCORING — Stub
+### SCORING MODEL — Implementado
 
-- **Tablas creadas:** `scoring_model`, `scoring_variable`, `model_variable_mapping`, `knockout_rule`
-- **Controller stub:** `GET /api/v1/scoring-variables`
-- **Pendiente:** lógica de gestión de modelos, activación/desactivación
+Gestión del ciclo de vida de modelos de scoring y sus reglas de knockout.
+
+```java
+public record ScoringModel(UUID id, String nombre, String descripcion, int version,
+                            ModelStatus estado, List<ModelVariable> variables,
+                            OffsetDateTime fechaCreacion, OffsetDateTime fechaActivacion)
+// Estados: DRAFT (editable) → ACTIVE (en uso, solo uno a la vez) → INACTIVE (histórico)
+// Restricciones de activación: pesos suman 1.00 (RN1), mínimo 3 variables (RN2)
+
+public record KnockoutRule(UUID id, UUID modeloId, String campo, KnockoutOperator operador,
+                            BigDecimal umbral, String mensaje, int prioridad, boolean activa)
+// Operadores: GT | LT | GTE | LTE | EQ | NEQ
+// prioridad: orden de evaluación (ascendente)
+```
+
+**Flujo de activación:**
+1. `PUT /api/v1/modelos-scoring/{id}/activar` valida peso total = 1.00 y mínimo 3 variables
+2. El modelo anterior pasa a `INACTIVE`
+3. Solo puede haber un modelo `ACTIVE` al mismo tiempo (restricción en BD)
+
+**Endpoints:** `POST /api/v1/modelos-scoring` · `GET /api/v1/modelos-scoring` · `GET /api/v1/modelos-scoring/{id}` · `PUT /api/v1/modelos-scoring/{id}/activar` · `GET /api/v1/modelos-scoring/comparar` · CRUD de reglas KO en `/api/v1/modelos-scoring/{modeloId}/reglas-knockout`
+
+---
+
+### SCORING ENGINE — Implementado
+
+Motor de cálculo de scoring y modo de simulación para pruebas sin persistencia.
+
+```java
+public record ScoringResult(UUID modeloId, UUID aplicanteId, BigDecimal puntajeFinal,
+                             List<VariableScoreDetail> desglose,
+                             List<KnockoutEvaluationDetail> reglasKoEvaluadas,
+                             boolean rechazadoPorKo, String mensajeKo)
+// puntajeFinal = Σ(puntaje_variable_i × peso_i)
+// Si alguna KO rule dispara → puntajeFinal = 0, rechazadoPorKo = true
+
+public record SimulationScenario(UUID id, UUID modeloId, String nombre, String descripcion,
+                                  Map<String, BigDecimal> valoresVariables,
+                                  OffsetDateTime fechaCreacion, String creadoPor)
+```
+
+**Flujo de cálculo:**
+1. Se obtiene el modelo `ACTIVE` y sus variables y reglas KO
+2. `FinancialDataValueExtractor` extrae los valores del `FinancialData` del solicitante
+3. `ScoringCalculator` evalúa KO rules (en orden por `prioridad`); si alguna dispara → score = 0
+4. Si no hay KO: calcula `puntaje_final = Σ(puntaje_rango_variable × peso)`
+
+**Endpoints:** `POST /api/v1/scoring/calcular` · `POST /api/v1/scoring/simular` · `POST /api/v1/scoring/simulaciones` · `GET /api/v1/scoring/simulaciones` · `POST /api/v1/scoring/simulaciones/{id}/ejecutar`
+
+---
+
+### EVALUATION — Implementado
+
+Ejecución de evaluaciones crediticias completas y generación de reportes PDF.
+
+```java
+public record Evaluation(UUID id, UUID applicantId, UUID modelId, UUID financialDataId,
+                          BigDecimal totalScore, RiskLevel riskLevel, boolean knockedOut,
+                          String knockoutReasons, OffsetDateTime evaluatedAt, String evaluatedBy,
+                          OffsetDateTime createdAt, String createdBy,
+                          List<EvaluationDetail> details, List<EvaluationKnockout> knockouts)
+// RiskLevel: VERY_LOW | LOW | MEDIUM | HIGH | VERY_HIGH | REJECTED
+// knockedOut = true cuando una KO rule dispara → riskLevel = REJECTED, totalScore = 0
+```
+
+**Flujo de evaluación (`POST /api/v1/evaluaciones`):**
+1. Valida que el solicitante tenga `FinancialData` registrado (→ 422 si no)
+2. Verifica cooldown: no se puede re-evaluar el mismo solicitante antes de N días (→ 409)
+3. Delega el cálculo al `ScoringEngine` vía puerto interno
+4. Persiste la `Evaluation` con todos sus detalles y registros KO
+5. Retorna la evaluación con `totalScore`, `riskLevel`, y desglose
+
+**Endpoints:** `POST /api/v1/evaluaciones` · `GET /api/v1/evaluaciones/{id}` · `GET /api/v1/evaluaciones/{id}/pdf`
+
+---
+
+### CREDIT DECISION — Implementado
+
+Registro de la decisión final tomada sobre una evaluación crediticia. Las decisiones son **inmutables** una vez registradas.
+
+```java
+public record CreditDecision(UUID id, UUID evaluationId, DecisionStatus decision,
+                              String observations, String analystId,
+                              OffsetDateTime decidedAt, OffsetDateTime createdAt, String createdBy,
+                              String supervisorId, OffsetDateTime resolutionDeadlineAt)
+// DecisionStatus: APPROVED | REJECTED | MANUAL_REVIEW | ESCALATED
+// observations: mínimo 20 caracteres (CA3)
+// ESCALATED: deadline automático de 48h + supervisorId obligatorio (RN4)
+// CA4/RN1: si la evaluación fue rechazada por KO → solo REJECTED es válido
+```
+
+**Flujo de registro (`POST /api/v1/evaluaciones/{id}/decision`):**
+1. Verifica que no exista ya una decisión para esa evaluación (→ 409 si ya hay)
+2. Si la evaluación fue `knockedOut`, valida que la decisión sea `REJECTED` (→ 400 si no)
+3. Crea la `CreditDecision` via factory `CreditDecision.crear()`
+4. Para `ESCALATED`: calcula automáticamente `resolutionDeadlineAt = ahora + 48h`, dispara `EscalationNotificationPort`
+5. Persiste vía `CreditDecisionRepositoryPort`
+
+**Endpoints:** `POST /api/v1/evaluaciones/{id}/decision` · `GET /api/v1/evaluaciones/{id}/decision`
 
 ---
 
@@ -622,13 +868,20 @@ Todos los errores siguen **RFC 7807 (Problem Details)**. La respuesta siempre ti
 |-----------|--------|------|-------------|---------------|
 | `ApplicantValidationException` | applicant | 400 | `VALIDATION_FAILED` | Datos inválidos del solicitante |
 | `ImmutableFieldException` | applicant | 400 | `IMMUTABLE_FIELD` | Intento de editar `identificacion` o `fecha_nacimiento` |
+| `ScoringVariableValidationException` | scoring | 400 | `VALIDATION_FAILED` | Rangos inválidos, peso fuera de rango |
+| `ScoringModelValidationException` | scoringmodel | 400 | `VALIDATION_FAILED` | Peso total ≠ 1.00, menos de 3 variables |
+| `CreditDecisionValidationException` | creditdecision | 400 | `CREDIT_DECISION_VALIDATION_FAILED` | Observaciones < 20 caracteres |
+| `CreditDecisionKnockoutException` | creditdecision | 400 | `CREDIT_DECISION_KNOCKOUT_CONFLICT` | KO evaluation → solo REJECTED es válido |
 | `MethodArgumentNotValidException` | shared | 400 | `VALIDATION_FAILED` | Falla en `@Valid` de la request |
+| `ApplicantNoFinancialDataException` | evaluation | 422 | `NO_FINANCIAL_DATA` | Solicitante sin datos financieros registrados |
 | `InvalidCredentialsException` | security | 401 | `INVALID_CREDENTIALS` | Login fallido |
 | `AccessDeniedException` | shared | 403 | `ACCESS_DENIED` | Rol insuficiente (`@PreAuthorize`) |
 | `ResourceNotFoundException` | shared | 404 | `RESOURCE_NOT_FOUND` | Entidad no encontrada por ID |
 | `DuplicateApplicantException` | applicant | 409 | `DUPLICATE_RESOURCE` | Identificación ya registrada |
 | `DuplicateUserException` | security | 409 | `DUPLICATE_USER` | Username/email ya registrado |
 | `LastAdminException` | security | 409 | `LAST_ADMIN` | Intento de quitar el único admin |
+| `EvaluationCooldownException` | evaluation | 409 | `EVALUATION_COOLDOWN` | Re-evaluación antes del período de cooldown |
+| `CreditDecisionAlreadyExistsException` | creditdecision | 409 | `CREDIT_DECISION_ALREADY_EXISTS` | Ya existe una decisión para esa evaluación |
 | `Exception` (genérico) | shared | 500 | `INTERNAL_ERROR` | Error no esperado |
 
 El handler global está en `shared/exception/GlobalExceptionHandler.java`.
@@ -666,6 +919,13 @@ El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resou
 | V19 | Columnas `defaults_last_12m`, `defaults_last_24m`, `external_bureau_score`, `active_credit_products` en `financial_data` y `email`, `address` en `applicant` |
 | V20 | Columna `result` en `audit_log` |
 | V21 | Hace `entity_id` nullable en `audit_log` para fallos de login |
+| V22 | Columna `peso` en `scoring_variable` (BigDecimal 0.01–1.00) |
+| V23 | Actualiza constraint de `scoring_model.status` a DRAFT/ACTIVE/INACTIVE |
+| V24 | Columna `model_id` FK en `knockout_rule` (reglas scoped por modelo) |
+| V25 | Tabla `simulation_scenario` con campo JSONB `valores_variables` |
+| V26 | Agrega `REJECTED` al constraint de `evaluation.risk_level` |
+| V27 | Agrega `ESCALATED` al constraint de `credit_decision.decision` |
+| V28 | Columnas `supervisor_id` y `resolution_deadline_at` en `credit_decision` |
 
 ### Convenciones de la BD
 
@@ -798,19 +1058,87 @@ CORS_ALLOWED_ORIGINS=https://app.creditscoring.example.com
 
 ### Protegidos
 
+**Solicitantes**
+
 | Método | Path | Roles permitidos | Estado |
 |--------|------|-----------------|--------|
 | POST | `/api/v1/solicitantes` | ANALYST, ADMIN | Implementado |
 | GET | `/api/v1/solicitantes` | ANALYST, RISK_MANAGER, ADMIN, CREDIT_SUPERVISOR | Implementado |
 | PATCH | `/api/v1/solicitantes/{id}` | ANALYST, ADMIN | Implementado |
+
+**Datos financieros**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
+| POST | `/api/v1/solicitantes/{id}/datos-financieros` | ANALYST, ADMIN | Implementado |
+
+**Autenticación y usuarios**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
 | POST | `/api/v1/auth/usuarios` | ADMIN | Implementado |
 | PATCH | `/api/v1/auth/usuarios/{id}/rol` | ADMIN | Implementado |
+| GET | `/api/v1/roles/permisos` | ADMIN | Implementado |
+
+**Auditoría**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
 | GET | `/api/v1/auditoria` | ADMIN, RISK_MANAGER, CREDIT_SUPERVISOR | Implementado |
 | GET | `/api/v1/auditoria/export` | ADMIN, RISK_MANAGER, CREDIT_SUPERVISOR | Implementado |
-| GET | `/api/v1/evaluaciones` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | Stub |
-| POST | `/api/v1/evaluaciones` | ADMIN, ANALYST | Stub |
+
+**Variables de scoring**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
+| POST | `/api/v1/variables-scoring` | ADMIN, RISK_MANAGER | Implementado |
+| PUT | `/api/v1/variables-scoring/{id}` | ADMIN, RISK_MANAGER | Implementado |
+| GET | `/api/v1/variables-scoring` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
+
+**Modelos de scoring**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
+| POST | `/api/v1/modelos-scoring` | ADMIN, RISK_MANAGER | Implementado |
+| GET | `/api/v1/modelos-scoring` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
+| GET | `/api/v1/modelos-scoring/{id}` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
+| PUT | `/api/v1/modelos-scoring/{id}/activar` | ADMIN, RISK_MANAGER | Implementado |
+| GET | `/api/v1/modelos-scoring/comparar` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
+| GET | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout` | ADMIN, RISK_MANAGER, ANALYST | Implementado |
+| POST | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout` | ADMIN, RISK_MANAGER | Implementado |
+| PUT | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout/{id}` | ADMIN, RISK_MANAGER | Implementado |
+| DELETE | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout/{id}` | ADMIN, RISK_MANAGER | Implementado |
+
+**Motor de scoring y simulación**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
+| POST | `/api/v1/scoring/calcular` | ADMIN, ANALYST, RISK_MANAGER | Implementado |
+| POST | `/api/v1/scoring/simular` | Autenticado | Implementado |
+| POST | `/api/v1/scoring/simulaciones` | Autenticado | Implementado |
+| GET | `/api/v1/scoring/simulaciones` | Autenticado | Implementado |
+| POST | `/api/v1/scoring/simulaciones/{id}/ejecutar` | Autenticado | Implementado |
+
+**Evaluaciones**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
+| POST | `/api/v1/evaluaciones` | ADMIN, ANALYST | Implementado |
+| GET | `/api/v1/evaluaciones/{id}` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | Implementado |
+| GET | `/api/v1/evaluaciones/{id}/pdf` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | Implementado |
+
+**Decisiones crediticias**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
+| POST | `/api/v1/evaluaciones/{id}/decision` | ADMIN, RISK_MANAGER | Implementado |
+| GET | `/api/v1/evaluaciones/{id}/decision` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | Implementado |
+
+**Reportes**
+
+| Método | Path | Roles permitidos | Estado |
+|--------|------|-----------------|--------|
 | GET | `/api/v1/reportes/distribución` | ADMIN, RISK_MANAGER | Stub |
-| GET | `/api/v1/scoring-variables` | (autenticado) | Stub |
 
 ---
 
@@ -833,16 +1161,43 @@ test/
 │   │   └── ApplicantTest.java
 │   └── migration/
 │       └── V18MigrationTest.java
+├── creditdecision/
+│   ├── CreditDecisionIntegrationTest.java
+│   ├── application/service/
+│   │   └── RegisterCreditDecisionServiceTest.java
+│   └── domain/model/
+│       └── CreditDecisionTest.java
+├── evaluation/
+│   ├── integration/
+│   │   └── EvaluationIntegrationTest.java
+│   ├── application/
+│   │   └── ExecuteEvaluationServiceTest.java
+│   └── domain/
+│       ├── EvaluationDetailTest.java
+│       └── EvaluationKnockoutTest.java
+├── financialdata/
+│   └── application/service/
+│       └── FinancialDataCommandServiceTest.java
+├── scoring/
+│   └── ScoringVariableIntegrationTest.java
+├── scoringengine/
+│   └── ScoringSimulationIntegrationTest.java
+├── scoringmodel/
+│   └── ScoringModelIntegrationTest.java
 └── shared/security/
     ├── acceptance/
     │   ├── AuthLoginAT.java
     │   └── PermissionMatrixAT.java
     ├── application/service/
     │   ├── AuthenticateServiceTest.java
-    │   └── ChangeUserRoleServiceTest.java
-    ├── infrastructure/jwt/
-    │   ├── JwtServiceTest.java
-    │   └── JwtAuthenticationFilterTest.java
+    │   ├── ChangeUserRoleServiceTest.java
+    │   └── GetAuditLogsServiceTest.java
+    ├── infrastructure/
+    │   ├── jwt/
+    │   │   ├── JwtServiceTest.java
+    │   │   └── JwtAuthenticationFilterTest.java
+    │   └── rest/
+    │       └── AuditLogControllerTest.java
     ├── integration/
     │   ├── CreateUserIntegrationTest.java
     │   ├── LastAdminProtectionIT.java
@@ -1256,4 +1611,4 @@ Disponibles en `/actuator/prometheus`. Métricas custom:
 
 ---
 
-*Última actualización: Abril 2026*
+*Última actualización: Mayo 2026*
