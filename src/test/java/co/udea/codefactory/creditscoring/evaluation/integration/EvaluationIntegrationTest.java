@@ -52,10 +52,10 @@ class EvaluationIntegrationTest {
         try { jdbc.update("DELETE FROM credit_decision"); } catch (Exception ignored) {}
         try { jdbc.update("DELETE FROM knockout_rule"); } catch (Exception ignored) {}
         try { jdbc.update("DELETE FROM model_variable"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM scoring_model WHERE created_by = 'user'"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM variable_range WHERE variable_id IN (SELECT id FROM scoring_variable WHERE created_by = 'user')"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM variable_category WHERE variable_id IN (SELECT id FROM scoring_variable WHERE created_by = 'user')"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM scoring_variable WHERE created_by = 'user'"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM scoring_model"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM variable_range"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM variable_category"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM scoring_variable"); } catch (Exception ignored) {}
         try { jdbc.update("DELETE FROM financial_data"); } catch (Exception ignored) {}
         try { jdbc.update("DELETE FROM applicant WHERE created_by = 'user'"); } catch (Exception ignored) {}
     }
