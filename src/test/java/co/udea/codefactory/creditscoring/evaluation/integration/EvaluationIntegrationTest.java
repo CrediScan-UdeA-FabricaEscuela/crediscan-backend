@@ -45,18 +45,19 @@ class EvaluationIntegrationTest {
 
     @BeforeEach
     void limpiar() {
-        // Eliminar en orden correcto por FK — evaluaciones primero
-        jdbc.update("DELETE FROM evaluation_knockout");
-        jdbc.update("DELETE FROM evaluation_detail");
-        jdbc.update("DELETE FROM evaluation");
-        jdbc.update("DELETE FROM knockout_rule");
-        jdbc.update("DELETE FROM model_variable");
-        jdbc.update("DELETE FROM scoring_model WHERE created_by = 'user'");
-        jdbc.update("DELETE FROM variable_range WHERE variable_id IN (SELECT id FROM scoring_variable WHERE created_by = 'user')");
-        jdbc.update("DELETE FROM variable_category WHERE variable_id IN (SELECT id FROM scoring_variable WHERE created_by = 'user')");
-        jdbc.update("DELETE FROM scoring_variable WHERE created_by = 'user'");
-        jdbc.update("DELETE FROM financial_data");
-        jdbc.update("DELETE FROM applicant WHERE created_by = 'user'");
+        // Eliminar en orden correcto por FK — evaluar si la tabla existe
+        try { jdbc.update("DELETE FROM evaluation_knockout"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM evaluation_detail"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM evaluation"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM credit_decision"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM knockout_rule"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM model_variable"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM scoring_model WHERE created_by = 'user'"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM variable_range WHERE variable_id IN (SELECT id FROM scoring_variable WHERE created_by = 'user')"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM variable_category WHERE variable_id IN (SELECT id FROM scoring_variable WHERE created_by = 'user')"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM scoring_variable WHERE created_by = 'user'"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM financial_data"); } catch (Exception ignored) {}
+        try { jdbc.update("DELETE FROM applicant WHERE created_by = 'user'"); } catch (Exception ignored) {}
     }
 
     // =========================================================================

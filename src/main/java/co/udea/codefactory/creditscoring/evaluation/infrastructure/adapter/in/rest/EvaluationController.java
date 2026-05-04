@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import co.udea.codefactory.creditscoring.creditdecision.domain.port.out.CreditDecisionRepositoryPort;
 import co.udea.codefactory.creditscoring.evaluation.application.dto.ExecuteEvaluationCommand;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.Evaluation;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.EvaluationDetail;
@@ -37,14 +38,17 @@ public class EvaluationController {
     private final ExecuteEvaluationUseCase executeEvaluationUseCase;
     private final GetEvaluationUseCase getEvaluationUseCase;
     private final GetEvaluationReportUseCase getEvaluationReportUseCase;
+    private final CreditDecisionRepositoryPort creditDecisionRepository;
 
     public EvaluationController(
             ExecuteEvaluationUseCase executeEvaluationUseCase,
             GetEvaluationUseCase getEvaluationUseCase,
-            GetEvaluationReportUseCase getEvaluationReportUseCase) {
+            GetEvaluationReportUseCase getEvaluationReportUseCase,
+            CreditDecisionRepositoryPort creditDecisionRepository) {
         this.executeEvaluationUseCase = executeEvaluationUseCase;
         this.getEvaluationUseCase = getEvaluationUseCase;
         this.getEvaluationReportUseCase = getEvaluationReportUseCase;
+        this.creditDecisionRepository = creditDecisionRepository;
     }
 
     /** Lista evaluaciones — stub sin lógica de negocio (fuera del scope de HU-010). */
@@ -102,6 +106,7 @@ public class EvaluationController {
         return new EvaluationResponse(
                 e.id(), e.applicantId(), e.modelId(), e.financialDataId(),
                 e.totalScore(), e.riskLevel().name(), e.knockedOut(), e.knockoutReasons(),
-                e.evaluatedAt(), e.evaluatedBy(), details, knockouts);
+                e.evaluatedAt(), e.evaluatedBy(), details, knockouts,
+                creditDecisionRepository.existsByEvaluationId(e.id()));
     }
 }

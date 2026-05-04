@@ -45,7 +45,7 @@ class ApplicantRegistrationIntegrationTest {
 
     @BeforeEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM applicant");
+        jdbcTemplate.update("TRUNCATE TABLE applicant CASCADE");
     }
 
     @Test

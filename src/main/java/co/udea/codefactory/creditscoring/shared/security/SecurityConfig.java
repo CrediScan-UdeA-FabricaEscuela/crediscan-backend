@@ -107,6 +107,9 @@ public class SecurityConfig {
                         // Evaluaciones: ANALYST y ADMIN pueden crear; otros roles solo lectura via @PreAuthorize
                         .requestMatchers(HttpMethod.POST, "/api/v1/evaluaciones")
                             .hasAnyRole("ADMIN", "ANALYST")
+                        // Decisiones crediticias: solo RISK_MANAGER y ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/v1/evaluaciones/*/decision")
+                            .hasAnyRole("ADMIN", "RISK_MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/evaluaciones/*/pdf")
                             .hasAnyRole("ADMIN", "ANALYST", "CREDIT_SUPERVISOR", "RISK_MANAGER")
                         // All other requests require authentication — fine-grained via @PreAuthorize

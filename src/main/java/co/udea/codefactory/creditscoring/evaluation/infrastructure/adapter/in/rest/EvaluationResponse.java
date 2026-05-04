@@ -21,7 +21,8 @@ public record EvaluationResponse(
         OffsetDateTime evaluatedAt,
         String evaluatedBy,
         List<DetailDto> details,
-        List<KnockoutDto> knockouts
+        List<KnockoutDto> knockouts,
+        boolean hasCreditDecision
 ) {
 
     /** Desglose del puntaje parcial obtenido por cada variable de scoring. */
