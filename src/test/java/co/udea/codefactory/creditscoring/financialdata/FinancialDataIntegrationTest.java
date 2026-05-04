@@ -40,7 +40,11 @@ class FinancialDataIntegrationTest {
 
     @BeforeEach
     void limpiar() {
-        // financial_data referencia a applicant, por eso se borra primero
+        // Eliminar en orden correcto por FK
+        jdbcTemplate.update("DELETE FROM credit_decision");
+        jdbcTemplate.update("DELETE FROM evaluation_knockout");
+        jdbcTemplate.update("DELETE FROM evaluation_detail");
+        jdbcTemplate.update("DELETE FROM evaluation");
         jdbcTemplate.update("DELETE FROM financial_data");
         jdbcTemplate.update("DELETE FROM applicant");
     }

@@ -43,13 +43,17 @@ class ScoringVariableIntegrationTest {
 
     @BeforeEach
     void limpiar() {
-        // Eliminar en orden correcto por FK: model_variable → variable_range/category → variable
-        jdbcTemplate.update("DELETE FROM model_variable");
-        jdbcTemplate.update("DELETE FROM scoring_model WHERE created_by = 'user'");
-        jdbcTemplate.update("DELETE FROM variable_range");
-        jdbcTemplate.update("DELETE FROM variable_category");
-        // Solo las variables creadas en los tests (no las del seed de V15)
-        jdbcTemplate.update("DELETE FROM scoring_variable WHERE created_by = 'user'");
+        // TRUNCATE CASCADE para evitar problemas de FK
+        jdbcTemplate.update("TRUNCATE TABLE evaluation RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE credit_decision RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE knockout_rule RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE model_variable RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE scoring_model RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE variable_range RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE variable_category RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE scoring_variable RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE financial_data RESTART IDENTITY CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE applicant RESTART IDENTITY CASCADE");
     }
 
     // ==========================================================================
