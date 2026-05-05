@@ -17,6 +17,7 @@ import co.udea.codefactory.creditscoring.scoringmodel.domain.model.ModelVariable
 import co.udea.codefactory.creditscoring.scoringmodel.domain.model.ScoringModel;
 import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.ActivateScoringModelUseCase;
 import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.CreateScoringModelUseCase;
+import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.DeleteScoringModelUseCase;
 import co.udea.codefactory.creditscoring.scoringmodel.domain.port.out.ScoringModelRepositoryPort;
 import co.udea.codefactory.creditscoring.scoring.domain.model.ScoringVariable;
 import co.udea.codefactory.creditscoring.scoring.domain.port.out.ScoringVariableRepositoryPort;
@@ -25,7 +26,7 @@ import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundExcept
 @Service
 @Transactional
 public class ScoringModelCommandService
-        implements CreateScoringModelUseCase, ActivateScoringModelUseCase {
+        implements CreateScoringModelUseCase, ActivateScoringModelUseCase, DeleteScoringModelUseCase {
 
     private final ScoringModelRepositoryPort modeloRepo;
     private final ScoringVariableRepositoryPort variableRepo;
@@ -107,6 +108,23 @@ public class ScoringModelCommandService
         modeloRepo.findActive().ifPresent(previo -> modeloRepo.update(previo.desactivar()));
 
         return modeloRepo.update(activado);
+    }
+
+    // -------------------------------------------------------------------------
+    // eliminar()
+    // -------------------------------------------------------------------------
+
+    @Override
+    public void eliminar(UUID id) {
+        ScoringModel modelo = modeloRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Modelo de scoring", "id", id));
+
+        if (!modelo.esEditable()) {
+            throw new ScoringModelValidationException(
+                    "Solo los modelos en estado BORRADOR pueden eliminarse (estado actual: " + modelo.estado() + ")");
+        }
+
+        modeloRepo.deleteById(id);
     }
 
     // -------------------------------------------------------------------------

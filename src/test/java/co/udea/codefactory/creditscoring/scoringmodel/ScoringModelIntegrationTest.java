@@ -2,6 +2,7 @@ package co.udea.codefactory.creditscoring.scoringmodel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -210,6 +211,57 @@ class ScoringModelIntegrationTest {
                 .andExpect(jsonPath("$.modeloBase.id").value(modelo1Id))
                 .andExpect(jsonPath("$.modeloComparado.id").value(modelo2Id))
                 .andExpect(jsonPath("$.diferencias").isArray());
+    }
+
+    // ==========================================================================
+    // Eliminar modelo (DELETE)
+    // ==========================================================================
+
+    @Test
+    void eliminar_modeloDraft_retorna204() throws Exception {
+        crearVariableNumerica("VarDel1", 1.00);
+        String modeloId = crearModelo("Modelo a eliminar");
+
+        mockMvc.perform(delete(URL + "/" + modeloId)
+                        .with(user("user").roles("ADMIN")))
+                .andExpect(status().isNoContent());
+
+        // El modelo ya no debe existir
+        mockMvc.perform(get(URL + "/" + modeloId)
+                        .with(user("user").roles("ADMIN")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void eliminar_modeloActivo_retorna400() throws Exception {
+        crearVariableNumerica("VarDelAct1", 0.40);
+        crearVariableNumerica("VarDelAct2", 0.35);
+        crearVariableNumerica("VarDelAct3", 0.25);
+
+        String modeloId = crearModelo("Modelo activo no eliminable");
+        activarModelo(modeloId);
+
+        mockMvc.perform(delete(URL + "/" + modeloId)
+                        .with(user("user").roles("ADMIN")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void eliminar_modeloInexistente_retorna404() throws Exception {
+        String idFalso = "00000000-0000-0000-0000-000000000099";
+        mockMvc.perform(delete(URL + "/" + idFalso)
+                        .with(user("user").roles("ADMIN")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void rbac_analistaNoEliminar_retorna403() throws Exception {
+        crearVariableNumerica("VarRbacDel", 1.00);
+        String modeloId = crearModelo("Modelo RBAC eliminar");
+
+        mockMvc.perform(delete(URL + "/" + modeloId)
+                        .with(user("analista").roles("ANALYST")))
+                .andExpect(status().isForbidden());
     }
 
     // ==========================================================================

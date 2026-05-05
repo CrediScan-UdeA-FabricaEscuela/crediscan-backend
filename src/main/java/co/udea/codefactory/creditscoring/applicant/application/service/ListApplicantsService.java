@@ -1,6 +1,8 @@
 package co.udea.codefactory.creditscoring.applicant.application.service;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,15 @@ public class ListApplicantsService implements ListApplicantsUseCase {
     public List<ApplicantSummary> export(ApplicantFilterCriteria criteria) {
         String hashIdentificacion = calcularHashSiHayCriterio(criteria.q());
         return applicantRepositoryPort.findAllByFilter(criteria, hashIdentificacion, MAX_EXPORT_SIZE);
+    }
+
+    @Override
+    public Optional<ApplicantSummary> findById(UUID id) {
+        return applicantRepositoryPort.findById(id)
+                .map(a -> new ApplicantSummary(
+                        a.id(), a.name(), a.identification(), a.birthDate(),
+                        a.employmentType().apiValue(), a.monthlyIncome(),
+                        a.workExperienceMonths(), a.phone(), a.address(), a.email()));
     }
 
     /**

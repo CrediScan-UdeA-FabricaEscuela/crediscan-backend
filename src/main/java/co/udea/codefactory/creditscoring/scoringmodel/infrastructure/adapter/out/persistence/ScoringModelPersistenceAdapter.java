@@ -95,6 +95,12 @@ public class ScoringModelPersistenceAdapter implements ScoringModelRepositoryPor
         return modelRepo.existsByName(nombre);
     }
 
+    @Override
+    public void deleteById(UUID id) {
+        variableRepo.deleteAllByModelId(id);
+        modelRepo.deleteById(id);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers internos
     // -------------------------------------------------------------------------

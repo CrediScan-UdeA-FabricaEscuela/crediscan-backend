@@ -26,4 +26,7 @@ public interface ScoringModelRepositoryPort {
     int maxVersion();
 
     boolean existsByNombre(String nombre);
+
+    /** Elimina un modelo y sus variables por id. */
+    void deleteById(UUID id);
 }

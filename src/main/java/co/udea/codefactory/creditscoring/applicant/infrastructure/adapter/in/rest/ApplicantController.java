@@ -128,6 +128,19 @@ public class ApplicantController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ANALYST') or hasRole('RISK_MANAGER') or hasRole('ADMIN') or hasRole('CREDIT_SUPERVISOR')")
+    @Operation(summary = "Obtener solicitante por ID")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Solicitante encontrado"),
+        @ApiResponse(responseCode = "404", description = "Solicitante no encontrado")
+    })
+    public ResponseEntity<ApplicantSearchResponse> getApplicant(@PathVariable UUID id) {
+        return listApplicantsUseCase.findById(id)
+                .map(s -> ResponseEntity.ok(applicantRestMapper.toSearchResponse(s)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/export")
     @PreAuthorize("hasRole('ANALYST') or hasRole('CREDIT_SUPERVISOR')")
     @Operation(summary = "Exportar solicitantes en CSV",

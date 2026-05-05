@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +25,7 @@ import co.udea.codefactory.creditscoring.scoringmodel.domain.model.ScoringModel;
 import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.ActivateScoringModelUseCase;
 import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.CompareScoringModelsUseCase;
 import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.CreateScoringModelUseCase;
+import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.DeleteScoringModelUseCase;
 import co.udea.codefactory.creditscoring.scoringmodel.domain.port.in.GetScoringModelsUseCase;
 
 @RestController
@@ -34,6 +36,7 @@ public class ScoringModelController {
     private final ActivateScoringModelUseCase activarUseCase;
     private final GetScoringModelsUseCase listarUseCase;
     private final CompareScoringModelsUseCase compararUseCase;
+    private final DeleteScoringModelUseCase eliminarUseCase;
     private final ScoringModelRestMapper mapper;
 
     @Autowired
@@ -42,11 +45,13 @@ public class ScoringModelController {
             ActivateScoringModelUseCase activarUseCase,
             GetScoringModelsUseCase listarUseCase,
             CompareScoringModelsUseCase compararUseCase,
+            DeleteScoringModelUseCase eliminarUseCase,
             ScoringModelRestMapper mapper) {
         this.crearUseCase = crearUseCase;
         this.activarUseCase = activarUseCase;
         this.listarUseCase = listarUseCase;
         this.compararUseCase = compararUseCase;
+        this.eliminarUseCase = eliminarUseCase;
         this.mapper = mapper;
     }
 
@@ -82,6 +87,14 @@ public class ScoringModelController {
     public ResponseEntity<ScoringModelResponse> activar(@PathVariable UUID id) {
         ScoringModel activado = activarUseCase.activar(id);
         return ResponseEntity.ok(mapper.toResponse(activado));
+    }
+
+    /** Elimina un modelo en estado BORRADOR (DRAFT). Solo ADMIN o RISK_MANAGER. */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RISK_MANAGER')")
+    public ResponseEntity<Void> eliminar(@PathVariable UUID id) {
+        eliminarUseCase.eliminar(id);
+        return ResponseEntity.noContent().build();
     }
 
     /** CA6: Compara dos versiones del modelo. */

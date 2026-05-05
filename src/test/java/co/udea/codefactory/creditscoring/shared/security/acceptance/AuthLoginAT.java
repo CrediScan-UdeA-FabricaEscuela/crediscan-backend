@@ -23,9 +23,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
  * POST /api/v1/auth/login with valid credentials → 200 + { token, role, expiresAt }
  * POST /api/v1/auth/login with missing credentials → 400 or 401
  *
- * Note: The V15 seed inserts admin user with BCrypt hash:
- * $2a$10$dXJ3SW6G7P50lGmMQoeVhOaLM0d3Rg0Xi6eP8MhiH9LGXBFBbLQiW
- * which corresponds to password "password" (standard BCrypt test hash).
+ * Note: V29 migration sets admin password hash for 'admin123'.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -48,7 +46,7 @@ class AuthLoginAT {
     void login_withValidCredentials_returnsTokenAndRole() {
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"username\": \"admin\", \"password\": \"password\"}")
+                .body("{\"username\": \"admin\", \"password\": \"admin123\"}")
         .when()
                 .post("/api/v1/auth/login")
         .then()
