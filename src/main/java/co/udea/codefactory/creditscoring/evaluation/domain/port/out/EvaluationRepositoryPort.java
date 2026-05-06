@@ -1,6 +1,7 @@
 package co.udea.codefactory.creditscoring.evaluation.domain.port.out;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,4 +23,7 @@ public interface EvaluationRepositoryPort {
      * Se usa para verificar el cooldown antes de iniciar una nueva evaluación.
      */
     boolean existsByApplicantIdAndEvaluatedAtAfter(UUID applicantId, OffsetDateTime since);
+
+    /** Retorna todas las evaluaciones ordenados por fecha descendente. */
+    List<Evaluation> findAll();
 }

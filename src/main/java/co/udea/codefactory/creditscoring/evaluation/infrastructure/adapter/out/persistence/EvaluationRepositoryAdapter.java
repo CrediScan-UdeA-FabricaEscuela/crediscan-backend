@@ -1,6 +1,7 @@
 package co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,5 +41,14 @@ public class EvaluationRepositoryAdapter implements EvaluationRepositoryPort {
     @Override
     public boolean existsByApplicantIdAndEvaluatedAtAfter(UUID applicantId, OffsetDateTime since) {
         return jpaRepository.existsByApplicantIdAndEvaluatedAtAfter(applicantId, since);
+    }
+
+    @Override
+    public List<Evaluation> findAll() {
+        return jpaRepository.findAll(org.springframework.data.domain.Sort.by(
+                org.springframework.data.domain.Sort.Direction.DESC, "evaluatedAt"
+        )).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }

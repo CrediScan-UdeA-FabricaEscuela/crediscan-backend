@@ -1,6 +1,7 @@
 package co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +12,9 @@ import org.springframework.data.repository.query.Param;
  * Repositorio Spring Data JPA para la entidad EvaluationJpaEntity.
  */
 public interface JpaEvaluationRepository extends JpaRepository<EvaluationJpaEntity, UUID> {
+
+    @Query("SELECT e FROM EvaluationJpaEntity e ORDER BY e.evaluatedAt DESC")
+    List<EvaluationJpaEntity> findAllByOrderByEvaluatedAtDesc();
 
     /**
      * Verifica si existe una evaluación para el solicitante evaluada después de {@code since}.
