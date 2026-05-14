@@ -1,27 +1,27 @@
 -- =============================================================================
 -- V15: Seed data (default admin user + RBAC permission matrix)
 -- =============================================================================
-
 -- -----------------------------------------------------------------------------
 -- Default admin user
 -- -----------------------------------------------------------------------------
+-- password_hash is injected at migration time via Flyway placeholder.
+-- Configured in application.yml -> spring.flyway.placeholders.admin_password_hash
+-- which reads from the ADMIN_PASSWORD_HASH environment variable.
 INSERT INTO app_user (id, username, email, password_hash, role, enabled, password_changed_at, created_at, created_by)
 VALUES (
     'a0000000-0000-0000-0000-000000000001',
     'admin',
     'admin@creditscoring.local',
-    '$2b$10$M9iOui2lOmxCn.oWiyvV.OB3Jg/8TfW9VUze0ksxBzyl7ocA02NwW',
+    '${admin_password_hash}',
     'ADMIN',
     true,
     NOW(),
     NOW(),
     'SYSTEM'
 );
-
 -- -----------------------------------------------------------------------------
 -- RBAC permission matrix
 -- -----------------------------------------------------------------------------
-
 -- ADMIN: full CRUD on all resources
 INSERT INTO role_permission (id, role, resource, action, created_at) VALUES
     (gen_random_uuid(), 'ADMIN', 'APPLICANT',        'CREATE', NOW()),
@@ -64,7 +64,6 @@ INSERT INTO role_permission (id, role, resource, action, created_at) VALUES
     (gen_random_uuid(), 'ADMIN', 'REPORT',           'READ',   NOW()),
     (gen_random_uuid(), 'ADMIN', 'REPORT',           'UPDATE', NOW()),
     (gen_random_uuid(), 'ADMIN', 'REPORT',           'DELETE', NOW());
-
 -- ANALYST: CREATE/READ on APPLICANT, FINANCIAL_DATA; READ on models/variables/rules;
 --          CREATE/READ on EVALUATION; READ on CREDIT_DECISION, REPORT
 INSERT INTO role_permission (id, role, resource, action, created_at) VALUES
@@ -79,7 +78,6 @@ INSERT INTO role_permission (id, role, resource, action, created_at) VALUES
     (gen_random_uuid(), 'ANALYST', 'EVALUATION',       'READ',   NOW()),
     (gen_random_uuid(), 'ANALYST', 'CREDIT_DECISION',  'READ',   NOW()),
     (gen_random_uuid(), 'ANALYST', 'REPORT',           'READ',   NOW());
-
 -- RISK_MANAGER: READ on APPLICANT, FINANCIAL_DATA; full CRUD on models/variables/rules;
 --               READ on EVALUATION; CREATE/READ/UPDATE on CREDIT_DECISION; READ on REPORT
 INSERT INTO role_permission (id, role, resource, action, created_at) VALUES
@@ -102,7 +100,6 @@ INSERT INTO role_permission (id, role, resource, action, created_at) VALUES
     (gen_random_uuid(), 'RISK_MANAGER', 'CREDIT_DECISION',  'READ',   NOW()),
     (gen_random_uuid(), 'RISK_MANAGER', 'CREDIT_DECISION',  'UPDATE', NOW()),
     (gen_random_uuid(), 'RISK_MANAGER', 'REPORT',           'READ',   NOW());
-
 -- AUDITOR: READ on all resources
 INSERT INTO role_permission (id, role, resource, action, created_at) VALUES
     (gen_random_uuid(), 'AUDITOR', 'APPLICANT',        'READ', NOW()),

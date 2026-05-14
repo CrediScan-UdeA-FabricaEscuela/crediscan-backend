@@ -20,8 +20,8 @@ logging:
 app:
   security:
     jwt:
-      secret: dGVzdFNlY3JldEtleUZvckp3dDAxMjM0NTY3ODlBQkNERUY=
+      secret: ${JWT_SECRET:test-only-not-a-real-secret}
       expiration-ms: 3600000
     crypto:
-      encryption-key-base64: MDEyMzQ1Njc4OUFCQ0RFRjAxMjM0NTY3ODlBQkNERUY=
-      hash-key-base64: RkVEQ0JBOTg3NjU0MzIxMEZFRENCQTk4NzY1NDMyMTA=
+      encryption-key-base64: ${CRYPTO_ENCRYPTION_KEY_BASE64:test-only-not-a-real-secret}
+      hash-key-base64: ${CRYPTO_HASH_KEY_BASE64:test-only-not-a-real-secret}
