@@ -8,6 +8,9 @@ import java.util.UUID;
 
 import co.udea.codefactory.creditscoring.evaluation.domain.model.Evaluation;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.RiskLevel;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchCriteria;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchItem;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationStats;
 import co.udea.codefactory.creditscoring.shared.PageRequest;
 import co.udea.codefactory.creditscoring.shared.PagedResult;
 
@@ -62,4 +65,31 @@ public interface EvaluationRepositoryPort {
      * @return lista ordenada (puede ser vacía si el solicitante no tiene evaluaciones)
      */
     List<Evaluation> findByApplicantIdOrderByEvaluatedAtDesc(UUID applicantId);
+
+    /**
+     * Busca evaluaciones aplicando criterios avanzados de filtrado con paginación.
+     *
+     * @param criteria criterios de búsqueda (fechas requeridas + filtros opcionales)
+     * @param page     parámetros de paginación
+     * @return página de items de evaluación con JOIN a applicant y credit_decision
+     */
+    PagedResult<EvaluationSearchItem> search(EvaluationSearchCriteria criteria, PageRequest page);
+
+    /**
+     * Calcula estadísticas agregadas (total, promedio, distribución por nivel)
+     * aplicando los mismos filtros que {@link #search}.
+     *
+     * @param criteria criterios de búsqueda
+     * @return estadísticas del conjunto filtrado
+     */
+    EvaluationStats stats(EvaluationSearchCriteria criteria);
+
+    /**
+     * Cuenta el número de evaluaciones que coinciden con los criterios dados.
+     * Se usa para la validación del límite de filas antes de generar un PDF.
+     *
+     * @param criteria criterios de búsqueda
+     * @return total de evaluaciones que cumplen los criterios
+     */
+    long countByCriteria(EvaluationSearchCriteria criteria);
 }

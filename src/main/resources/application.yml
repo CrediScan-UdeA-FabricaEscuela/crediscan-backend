@@ -9,6 +9,10 @@ spring:
   profiles:
     active: dev
 
+  # Cache
+  cache:
+    type: caffeine
+
   # JPA defaults (overridden per profile)
   jpa:
     open-in-view: false

@@ -65,8 +65,15 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 
+    // Cache
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("com.github.ben-manes.caffeine:caffeine:3.2.0")
+
     // PDF generation
     implementation("com.github.librepdf:openpdf:2.0.3")
+
+    // CSV generation
+    implementation("org.apache.commons:commons-csv:1.10.0")
 
     // Observability & Logging
     implementation("net.logstash.logback:logstash-logback-encoder:$logstashEncoderVersion")

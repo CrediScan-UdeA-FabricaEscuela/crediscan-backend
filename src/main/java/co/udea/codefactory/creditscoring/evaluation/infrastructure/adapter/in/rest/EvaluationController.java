@@ -1,7 +1,9 @@
 package co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,9 +26,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 import co.udea.codefactory.creditscoring.creditdecision.domain.port.out.CreditDecisionRepositoryPort;
 import co.udea.codefactory.creditscoring.evaluation.application.dto.ExecuteEvaluationCommand;
+import co.udea.codefactory.creditscoring.evaluation.domain.exception.EvaluationValidationException;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.ClassificationItem;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.Evaluation;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.EvaluationComparison;
@@ -34,28 +36,42 @@ import co.udea.codefactory.creditscoring.evaluation.domain.model.EvaluationDetai
 import co.udea.codefactory.creditscoring.evaluation.domain.model.EvaluationDetailView;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.EvaluationKnockout;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.RiskLevel;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.DecisionFilterValue;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchCriteria;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchItem;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationStats;
+import co.udea.codefactory.creditscoring.evaluation.domain.model.search.ExportFormat;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.CompareEvaluationsUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.ExecuteEvaluationUseCase;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.in.ExportEvaluationsUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetClassificationByLevelUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluationClassificationUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluationDetailUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluationReportUseCase;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluationStatsUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluationUseCase;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.in.SearchEvaluationsUseCase;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationListCsvPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationRepositoryPort;
-import co.udea.codefactory.creditscoring.shared.PageRequest;
-import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.ClassificationItemResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.ClassificationSummaryResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationComparisonResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationDetailResponse;
+import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationSearchItemDto;
+import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationSearchResponse;
+import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationStatsResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.LevelCountDto;
-import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence.EvaluationJpaEntity;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence.EvaluationPersistenceMapper;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence.JpaEvaluationRepository;
+import co.udea.codefactory.creditscoring.shared.PageRequest;
+import co.udea.codefactory.creditscoring.shared.PagedResult;
 
 /**
  * Controlador REST para el bounded context de evaluaciones crediticias.
- * Expone los endpoints para ejecutar evaluaciones, consultarlas y descargar su reporte PDF.
+ * Expone los endpoints para ejecutar evaluaciones, consultarlas, buscarlas y exportarlas.
+ *
+ * <p>ORDEN DE PATHS CRÍTICO: rutas estáticas literales ANTES de {@code /{id}} para evitar
+ * colisiones con Spring MVC (e.g., /estadisticas no puede ser interpretado como UUID).</p>
  */
 @RestController
 @RequestMapping("/api/v1/evaluaciones")
@@ -72,6 +88,10 @@ public class EvaluationController {
     private final GetClassificationByLevelUseCase getClassificationByLevelUseCase;
     private final GetEvaluationDetailUseCase getEvaluationDetailUseCase;
     private final CompareEvaluationsUseCase compareEvaluationsUseCase;
+    private final SearchEvaluationsUseCase searchEvaluationsUseCase;
+    private final GetEvaluationStatsUseCase getEvaluationStatsUseCase;
+    private final ExportEvaluationsUseCase exportEvaluationsUseCase;
+    private final EvaluationListCsvPort csvPort;
 
     public EvaluationController(
             ExecuteEvaluationUseCase executeEvaluationUseCase,
@@ -84,7 +104,11 @@ public class EvaluationController {
             GetEvaluationClassificationUseCase getEvaluationClassificationUseCase,
             GetClassificationByLevelUseCase getClassificationByLevelUseCase,
             GetEvaluationDetailUseCase getEvaluationDetailUseCase,
-            CompareEvaluationsUseCase compareEvaluationsUseCase) {
+            CompareEvaluationsUseCase compareEvaluationsUseCase,
+            SearchEvaluationsUseCase searchEvaluationsUseCase,
+            GetEvaluationStatsUseCase getEvaluationStatsUseCase,
+            ExportEvaluationsUseCase exportEvaluationsUseCase,
+            EvaluationListCsvPort csvPort) {
         this.executeEvaluationUseCase = executeEvaluationUseCase;
         this.getEvaluationUseCase = getEvaluationUseCase;
         this.getEvaluationReportUseCase = getEvaluationReportUseCase;
@@ -96,19 +120,47 @@ public class EvaluationController {
         this.getClassificationByLevelUseCase = getClassificationByLevelUseCase;
         this.getEvaluationDetailUseCase = getEvaluationDetailUseCase;
         this.compareEvaluationsUseCase = compareEvaluationsUseCase;
+        this.searchEvaluationsUseCase = searchEvaluationsUseCase;
+        this.getEvaluationStatsUseCase = getEvaluationStatsUseCase;
+        this.exportEvaluationsUseCase = exportEvaluationsUseCase;
+        this.csvPort = csvPort;
     }
 
-    /** Lista evaluaciones con su desglose completo. */
+    // =========================================================================
+    // GET / — búsqueda avanzada paginada (reemplaza el scaffold sin filtros)
+    // =========================================================================
+
+    /**
+     * Búsqueda avanzada paginada de evaluaciones con filtros opcionales.
+     * Reemplaza el endpoint scaffold anterior (listado sin filtros).
+     * {@code fecha_desde} y {@code fecha_hasta} son requeridos.
+     */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','ANALYST','CREDIT_SUPERVISOR','RISK_MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','RISK_MANAGER','CREDIT_SUPERVISOR')")
     @Transactional(readOnly = true)
-    public ResponseEntity<List<EvaluationResponse>> listEvaluaciones() {
-        List<EvaluationJpaEntity> entities = jpaEvaluationRepository.findAllByOrderByEvaluatedAtDesc();
-        return ResponseEntity.ok(entities.stream()
-                .map(evaluationMapper::toDomain)
-                .map(this::toResponse)
-                .toList());
+    public ResponseEntity<EvaluationSearchResponse> buscarEvaluaciones(
+            @RequestParam(name = "fecha_desde")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaDesde,
+            @RequestParam(name = "fecha_hasta")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaHasta,
+            @RequestParam(name = "nivel", required = false) List<RiskLevel> niveles,
+            @RequestParam(name = "puntaje_min", required = false) BigDecimal puntajeMin,
+            @RequestParam(name = "puntaje_max", required = false) BigDecimal puntajeMax,
+            @RequestParam(name = "decision", required = false) List<String> decisionRaw,
+            @RequestParam(name = "analista", required = false) String analista,
+            @PageableDefault(size = 25) Pageable pageable) {
+
+        var criteria = new EvaluationSearchCriteria(
+                fechaDesde, fechaHasta, niveles, puntajeMin, puntajeMax,
+                parseDecisiones(decisionRaw), analista);
+        var pageReq = new PageRequest(pageable.getPageNumber(), pageable.getPageSize());
+        PagedResult<EvaluationSearchItem> result = searchEvaluationsUseCase.search(criteria, pageReq);
+        return ResponseEntity.ok(toSearchResponse(result));
     }
+
+    // =========================================================================
+    // POST / — ejecutar nueva evaluación
+    // =========================================================================
 
     /** Ejecuta una nueva evaluación crediticia para un solicitante. Retorna 201 con Location. */
     @PostMapping
@@ -121,6 +173,10 @@ public class EvaluationController {
                 .created(URI.create("/api/v1/evaluaciones/" + evaluation.id()))
                 .body(toResponse(evaluation));
     }
+
+    // =========================================================================
+    // GET /clasificacion — estáticos ANTES de /{id}
+    // =========================================================================
 
     /** Retorna el resumen de clasificación de riesgo del portafolio. */
     @GetMapping("/clasificacion")
@@ -165,6 +221,10 @@ public class EvaluationController {
         return ResponseEntity.ok(page);
     }
 
+    // =========================================================================
+    // GET /comparar
+    // =========================================================================
+
     /** Compara dos evaluaciones del mismo solicitante. */
     @GetMapping("/comparar")
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST','CREDIT_SUPERVISOR','RISK_MANAGER')")
@@ -179,6 +239,88 @@ public class EvaluationController {
         return ResponseEntity.ok(response);
     }
 
+    // =========================================================================
+    // GET /export — ANTES de /{id}
+    // =========================================================================
+
+    /**
+     * Exporta el listado filtrado en CSV (streaming) o PDF (buffered, máx 1000 filas).
+     * Path declarado antes de {@code /{id}} para evitar colisiones.
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN','RISK_MANAGER','CREDIT_SUPERVISOR')")
+    public ResponseEntity<?> exportar(
+            @RequestParam(name = "formato") ExportFormat formato,
+            @RequestParam(name = "fecha_desde")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaDesde,
+            @RequestParam(name = "fecha_hasta")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaHasta,
+            @RequestParam(name = "nivel", required = false) List<RiskLevel> niveles,
+            @RequestParam(name = "puntaje_min", required = false) BigDecimal puntajeMin,
+            @RequestParam(name = "puntaje_max", required = false) BigDecimal puntajeMax,
+            @RequestParam(name = "decision", required = false) List<String> decisionRaw,
+            @RequestParam(name = "analista", required = false) String analista) {
+
+        var criteria = new EvaluationSearchCriteria(
+                fechaDesde, fechaHasta, niveles, puntajeMin, puntajeMax,
+                parseDecisiones(decisionRaw), analista);
+
+        if (formato == ExportFormat.CSV) {
+            // CSV: se usa el repositorio directamente (sin la validación de tamaño del service)
+            // porque el CSV no tiene límite estricto de filas.
+            PagedResult<EvaluationSearchItem> page = evaluationDomainRepository
+                    .search(criteria, new PageRequest(0, 10_000));
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            csvPort.escribir(baos, page.content().stream());
+            byte[] csvBytes = baos.toByteArray();
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("text/csv"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=evaluaciones.csv")
+                    .body(csvBytes);
+        }
+
+        // PDF: buffered con límite de 1000 filas
+        ExportEvaluationsUseCase.ExportArtifact artifact =
+                exportEvaluationsUseCase.export(criteria, ExportFormat.PDF);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + artifact.filename())
+                .body(artifact.payload());
+    }
+
+    // =========================================================================
+    // GET /estadisticas — ANTES de /{id}
+    // =========================================================================
+
+    /**
+     * Retorna estadísticas agregadas del conjunto filtrado de evaluaciones.
+     * Path declarado antes de {@code /{id}} para evitar colisiones.
+     */
+    @GetMapping("/estadisticas")
+    @PreAuthorize("hasAnyRole('ADMIN','RISK_MANAGER','CREDIT_SUPERVISOR')")
+    public ResponseEntity<EvaluationStatsResponse> estadisticas(
+            @RequestParam(name = "fecha_desde")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaDesde,
+            @RequestParam(name = "fecha_hasta")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaHasta,
+            @RequestParam(name = "nivel", required = false) List<RiskLevel> niveles,
+            @RequestParam(name = "puntaje_min", required = false) BigDecimal puntajeMin,
+            @RequestParam(name = "puntaje_max", required = false) BigDecimal puntajeMax,
+            @RequestParam(name = "decision", required = false) List<String> decisionRaw,
+            @RequestParam(name = "analista", required = false) String analista) {
+
+        var criteria = new EvaluationSearchCriteria(
+                fechaDesde, fechaHasta, niveles, puntajeMin, puntajeMax,
+                parseDecisiones(decisionRaw), analista);
+        EvaluationStats stats = getEvaluationStatsUseCase.stats(criteria);
+        return ResponseEntity.ok(toStatsResponse(stats));
+    }
+
+    // =========================================================================
+    // GET /{id}/detalle y /{id}/pdf — DESPUÉS de rutas estáticas
+    // =========================================================================
+
     /** Retorna el detalle completo de una evaluación por su identificador. */
     @GetMapping("/{id}/detalle")
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST','CREDIT_SUPERVISOR','RISK_MANAGER')")
@@ -187,14 +329,7 @@ public class EvaluationController {
         return ResponseEntity.ok(toDetailResponse(view));
     }
 
-    /** Consulta una evaluación por su identificador. */
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','ANALYST','CREDIT_SUPERVISOR','RISK_MANAGER')")
-    public ResponseEntity<EvaluationResponse> obtenerEvaluacion(@PathVariable UUID id) {
-        return ResponseEntity.ok(toResponse(getEvaluationUseCase.obtenerPorId(id)));
-    }
-
-    /** Descarga el reporte PDF de una evaluación. */
+    /** Descarga el reporte PDF de una evaluación individual. */
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST','CREDIT_SUPERVISOR','RISK_MANAGER')")
     public ResponseEntity<byte[]> descargarPdf(@PathVariable UUID id) {
@@ -207,7 +342,71 @@ public class EvaluationController {
                 .body(pdf);
     }
 
-    // Mapeo de EvaluationDetailView a EvaluationDetailResponse
+    // =========================================================================
+    // GET /{id} — ÚLTIMO (debe estar después de todas las rutas estáticas)
+    // =========================================================================
+
+    /** Consulta una evaluación por su identificador. */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','ANALYST','CREDIT_SUPERVISOR','RISK_MANAGER')")
+    public ResponseEntity<EvaluationResponse> obtenerEvaluacion(@PathVariable UUID id) {
+        return ResponseEntity.ok(toResponse(getEvaluationUseCase.obtenerPorId(id)));
+    }
+
+    // =========================================================================
+    // Helpers privados
+    // =========================================================================
+
+    /**
+     * Parsea el parámetro {@code decision} multi-value.
+     * Soporta valores separados por coma o múltiples query params.
+     * Normaliza a null si la lista resultante está vacía.
+     */
+    private List<DecisionFilterValue> parseDecisiones(List<String> raw) {
+        if (raw == null || raw.isEmpty()) return null;
+        List<DecisionFilterValue> parsed = raw.stream()
+                .flatMap(s -> Arrays.stream(s.split(",")))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(s -> {
+                    try {
+                        return DecisionFilterValue.valueOf(s);
+                    } catch (IllegalArgumentException e) {
+                        throw new EvaluationValidationException("decision inválida: " + s);
+                    }
+                })
+                .toList();
+        return parsed.isEmpty() ? null : parsed;
+    }
+
+    private EvaluationSearchResponse toSearchResponse(PagedResult<EvaluationSearchItem> result) {
+        List<EvaluationSearchItemDto> dtos = result.content().stream()
+                .map(item -> new EvaluationSearchItemDto(
+                        item.evaluationId(),
+                        item.applicantId(),
+                        item.applicantName(),
+                        item.evaluatedAt(),
+                        item.score(),
+                        item.riskLevel().name(),
+                        item.decisionStatus(),
+                        item.analista()))
+                .toList();
+        return new EvaluationSearchResponse(
+                dtos,
+                result.pageNumber(),
+                result.pageSize(),
+                result.totalElements(),
+                result.totalPages());
+    }
+
+    private EvaluationStatsResponse toStatsResponse(EvaluationStats stats) {
+        List<LevelCountDto> distribution = stats.distribution().entrySet().stream()
+                .filter(e -> e.getValue() > 0)
+                .map(e -> new LevelCountDto(e.getKey().name(), e.getValue()))
+                .toList();
+        return new EvaluationStatsResponse(stats.total(), stats.averageScore(), distribution);
+    }
+
     private EvaluationDetailResponse toDetailResponse(EvaluationDetailView view) {
         Evaluation e = view.evaluation();
         List<EvaluationDetailResponse.DetailItemDto> details = e.details().stream()
@@ -227,7 +426,6 @@ public class EvaluationController {
                 details, knockouts);
     }
 
-    // Mapeo de dominio a DTO de respuesta
     private EvaluationResponse toResponse(Evaluation e) {
         List<EvaluationResponse.DetailDto> details = e.details().stream()
                 .map(d -> new EvaluationResponse.DetailDto(
