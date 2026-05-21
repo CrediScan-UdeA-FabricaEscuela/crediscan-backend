@@ -17,10 +17,6 @@ spring:
 
   flyway:
     clean-disabled: true
-    # V15 fue modificada (placeholder de password_hash) después de aplicarse en Render.
-    # repair-on-migrate sincroniza el checksum sin re-ejecutar la migración:
-    # los datos del admin ya están en la DB, el cambio sólo aplicaría a deploys fresh.
-    repair-on-migrate: true
 
 logging:
   level:
