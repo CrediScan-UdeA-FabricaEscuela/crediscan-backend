@@ -25,6 +25,8 @@ import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundExcept
 public class ScoringModelQueryService
         implements GetScoringModelsUseCase, CompareScoringModelsUseCase {
 
+    private static final String RESOURCE_NAME = "Modelo de scoring";
+
     private final ScoringModelRepositoryPort repositorio;
 
     @Autowired
@@ -40,15 +42,15 @@ public class ScoringModelQueryService
     @Override
     public ScoringModel obtener(UUID id) {
         return repositorio.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Modelo de scoring", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE_NAME, "id", id));
     }
 
     @Override
     public ScoringModelComparisonResponse comparar(UUID idBase, UUID idComparado) {
         ScoringModel base = repositorio.findById(idBase)
-                .orElseThrow(() -> new ResourceNotFoundException("Modelo de scoring", "id", idBase));
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE_NAME, "id", idBase));
         ScoringModel comparado = repositorio.findById(idComparado)
-                .orElseThrow(() -> new ResourceNotFoundException("Modelo de scoring", "id", idComparado));
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE_NAME, "id", idComparado));
 
         List<DiferenciaVariable> diferencias = calcularDiferencias(base, comparado);
 
@@ -74,25 +76,28 @@ public class ScoringModelQueryService
         List<DiferenciaVariable> diferencias = new ArrayList<>();
 
         // Variables en base pero no en comparado → ELIMINADA
-        for (UUID varId : baseMap.keySet()) {
+        for (Map.Entry<UUID, ModelVariable> entry : baseMap.entrySet()) {
+            UUID varId = entry.getKey();
             if (!comparadoMap.containsKey(varId)) {
                 diferencias.add(new DiferenciaVariable(
-                        varId, "ELIMINADA", baseMap.get(varId).peso(), null));
+                        varId, "ELIMINADA", entry.getValue().peso(), null));
             }
         }
 
         // Variables en comparado pero no en base → AGREGADA
-        for (UUID varId : comparadoMap.keySet()) {
+        for (Map.Entry<UUID, ModelVariable> entry : comparadoMap.entrySet()) {
+            UUID varId = entry.getKey();
             if (!baseMap.containsKey(varId)) {
                 diferencias.add(new DiferenciaVariable(
-                        varId, "AGREGADA", null, comparadoMap.get(varId).peso()));
+                        varId, "AGREGADA", null, entry.getValue().peso()));
             }
         }
 
         // Variables en ambos → MODIFICADA o SIN_CAMBIO
-        for (UUID varId : baseMap.keySet()) {
+        for (Map.Entry<UUID, ModelVariable> entry : baseMap.entrySet()) {
+            UUID varId = entry.getKey();
             if (comparadoMap.containsKey(varId)) {
-                ModelVariable mvBase = baseMap.get(varId);
+                ModelVariable mvBase = entry.getValue();
                 ModelVariable mvComparado = comparadoMap.get(varId);
                 String tipo = mvBase.peso().compareTo(mvComparado.peso()) != 0
                         ? "MODIFICADA"

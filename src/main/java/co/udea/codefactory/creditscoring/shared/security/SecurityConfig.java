@@ -32,6 +32,11 @@ import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenBl
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_RISK_MANAGER = "RISK_MANAGER";
+    private static final String ROLE_ANALYST = "ANALYST";
+    private static final String ROLE_CREDIT_SUPERVISOR = "CREDIT_SUPERVISOR";
+
     private final JpaUserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final AppUserRepositoryPort userRepository;
@@ -89,32 +94,32 @@ public class SecurityConfig {
                         // (duplicado con @PreAuthorize para garantizar rechazo a nivel filtro,
                         //  antes de que Spring MVC valide el request body)
                         .requestMatchers(HttpMethod.POST, "/api/v1/variables-scoring")
-                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.PUT, "/api/v1/variables-scoring/**")
-                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.POST, "/api/v1/modelos-scoring")
-                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.PUT, "/api/v1/modelos-scoring/**")
-                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.POST, "/api/v1/modelos-scoring/*/reglas-knockout")
-                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/modelos-scoring/**")
-                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_RISK_MANAGER)
                         // Simulación: todos los endpoints requieren autenticación (ANALYST también puede simular)
                         .requestMatchers(HttpMethod.POST, "/api/v1/scoring/simular")
-                            .hasAnyRole("ADMIN", "ANALYST", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_ANALYST, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.POST, "/api/v1/scoring/simulaciones")
-                            .hasAnyRole("ADMIN", "ANALYST", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_ANALYST, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.POST, "/api/v1/scoring/simulaciones/*/ejecutar")
-                            .hasAnyRole("ADMIN", "ANALYST", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_ANALYST, ROLE_RISK_MANAGER)
                         // Evaluaciones: ANALYST y ADMIN pueden crear; otros roles solo lectura via @PreAuthorize
                         .requestMatchers(HttpMethod.POST, "/api/v1/evaluaciones")
-                            .hasAnyRole("ADMIN", "ANALYST")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_ANALYST)
                         // Decisiones crediticias: solo RISK_MANAGER y ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/v1/evaluaciones/*/decision")
-                            .hasAnyRole("ADMIN", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_RISK_MANAGER)
                         .requestMatchers(HttpMethod.GET, "/api/v1/evaluaciones/*/pdf")
-                            .hasAnyRole("ADMIN", "ANALYST", "CREDIT_SUPERVISOR", "RISK_MANAGER")
+                            .hasAnyRole(ROLE_ADMIN, ROLE_ANALYST, ROLE_CREDIT_SUPERVISOR, ROLE_RISK_MANAGER)
                         // All other requests require authentication — fine-grained via @PreAuthorize
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

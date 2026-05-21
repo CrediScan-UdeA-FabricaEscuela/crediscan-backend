@@ -28,6 +28,8 @@ import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundExcept
 public class ScoringModelCommandService
         implements CreateScoringModelUseCase, ActivateScoringModelUseCase, DeleteScoringModelUseCase {
 
+    private static final String RESOURCE_NAME = "Modelo de scoring";
+
     private final ScoringModelRepositoryPort modeloRepo;
     private final ScoringVariableRepositoryPort variableRepo;
     private final ObjectMapper objectMapper;
@@ -69,7 +71,7 @@ public class ScoringModelCommandService
     private List<ModelVariable> clonarVariables(UUID modeloOrigenId) {
         ScoringModel origen = modeloRepo.findById(modeloOrigenId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Modelo de scoring", "id", modeloOrigenId));
+                        RESOURCE_NAME, "id", modeloOrigenId));
         return origen.variables().stream()
                 .map(v -> new ModelVariable(UUID.randomUUID(), null, v.variableId(), v.peso(), null))
                 .toList();
@@ -88,7 +90,7 @@ public class ScoringModelCommandService
     @Override
     public ScoringModel activar(UUID id) {
         ScoringModel modelo = modeloRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Modelo de scoring", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE_NAME, "id", id));
 
         // Generar snapshot de los rangos actuales para cada variable del modelo
         List<ModelVariable> variablesConSnapshot = modelo.variables().stream()
@@ -117,7 +119,7 @@ public class ScoringModelCommandService
     @Override
     public void eliminar(UUID id) {
         ScoringModel modelo = modeloRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Modelo de scoring", "id", id));
+                .orElseThrow(() -> new ResourceNotFoundException(RESOURCE_NAME, "id", id));
 
         if (!modelo.esEditable()) {
             throw new ScoringModelValidationException(

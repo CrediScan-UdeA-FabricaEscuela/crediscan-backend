@@ -37,6 +37,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String BASE_ERROR_URI = "https://api.creditscoring.udea.co/errors/";
+    private static final String KEY_ERROR_CODE = "errorCode";
+    private static final String KEY_TRACE_ID = "traceId";
+    private static final String KEY_TIMESTAMP = "timestamp";
+    private static final String KEY_MESSAGE = "message";
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
@@ -49,9 +53,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatus.BAD_REQUEST, "Validation failed");
         problem.setTitle("Validation Error");
         problem.setType(URI.create(BASE_ERROR_URI + "validation"));
-        problem.setProperty("errorCode", "VALIDATION_FAILED");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
+        problem.setProperty(KEY_ERROR_CODE, "VALIDATION_FAILED");
+        problem.setProperty(KEY_TRACE_ID, MDC.get(KEY_TRACE_ID));
+        problem.setProperty(KEY_TIMESTAMP, Instant.now().toString());
 
         List<Map<String, Object>> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> Map.<String, Object>of(
@@ -85,14 +89,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             httpStatus = HttpStatus.BAD_REQUEST;
         }
         String slug = ex.errorCode().toLowerCase().replace('_', '-');
-        String message = ((Exception) ex).getMessage();
+        String message = ex.getMessage();
 
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(httpStatus, message);
         problem.setTitle(httpStatus.getReasonPhrase());
         problem.setType(URI.create(BASE_ERROR_URI + slug));
-        problem.setProperty("errorCode", ex.errorCode());
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
+        problem.setProperty(KEY_ERROR_CODE, ex.errorCode());
+        problem.setProperty(KEY_TRACE_ID, MDC.get(KEY_TRACE_ID));
+        problem.setProperty(KEY_TIMESTAMP, Instant.now().toString());
         enrichWithPath(problem, request);
 
         log.warn("Domain exception [{}]: {}", ex.errorCode(), message);
@@ -105,10 +109,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 HttpStatus.FORBIDDEN, "No tiene permisos para acceder a este recurso");
         problem.setTitle("Access Denied");
         problem.setType(URI.create(BASE_ERROR_URI + "forbidden"));
-        problem.setProperty("errorCode", "ACCESS_DENIED");
-        problem.setProperty("message", "No tiene permisos para acceder a este recurso");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
+        problem.setProperty(KEY_ERROR_CODE, "ACCESS_DENIED");
+        problem.setProperty(KEY_MESSAGE, "No tiene permisos para acceder a este recurso");
+        problem.setProperty(KEY_TRACE_ID, MDC.get(KEY_TRACE_ID));
+        problem.setProperty(KEY_TIMESTAMP, Instant.now().toString());
         enrichWithPath(problem, request);
 
         log.warn("Access denied: {}", ex.getMessage());
@@ -121,9 +125,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
         problem.setTitle("Internal Server Error");
         problem.setType(URI.create(BASE_ERROR_URI + "internal"));
-        problem.setProperty("errorCode", "INTERNAL_ERROR");
-        problem.setProperty("traceId", MDC.get("traceId"));
-        problem.setProperty("timestamp", Instant.now().toString());
+        problem.setProperty(KEY_ERROR_CODE, "INTERNAL_ERROR");
+        problem.setProperty(KEY_TRACE_ID, MDC.get(KEY_TRACE_ID));
+        problem.setProperty(KEY_TIMESTAMP, Instant.now().toString());
         enrichWithPath(problem, request);
 
         log.error("Unhandled exception", ex);

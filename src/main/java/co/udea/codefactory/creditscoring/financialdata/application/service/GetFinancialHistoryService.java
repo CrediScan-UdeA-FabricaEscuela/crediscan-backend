@@ -20,6 +20,11 @@ import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundExcept
 @Transactional(readOnly = true)
 public class GetFinancialHistoryService implements GetFinancialHistoryUseCase {
 
+    // Constantes de tendencia para evitar literales duplicados (Sonar S1192)
+    private static final String TREND_UNCHANGED = "SIN_CAMBIO";
+    private static final String TREND_WORSENING = "DETERIORO";
+    private static final String TREND_IMPROVING = "MEJORA";
+
     private final FinancialDataRepositoryPort financialDataRepositoryPort;
     private final ApplicantRepositoryPort applicantRepositoryPort;
 
@@ -104,7 +109,7 @@ public class GetFinancialHistoryService implements GetFinancialHistoryUseCase {
             String valorComp = comparada.externalBureauScore() != null
                     ? comparada.externalBureauScore().toString() : "No disponible";
             String estado = computarEstadoScore(base.externalBureauScore(), comparada.externalBureauScore());
-            if (!"SIN_CAMBIO".equals(estado)) {
+            if (!TREND_UNCHANGED.equals(estado)) {
                 camposModificados.add(new FinancialDataComparison.CampoComparado(
                         "score_bureau", valorBase, valorComp, estado));
             }
@@ -124,7 +129,7 @@ public class GetFinancialHistoryService implements GetFinancialHistoryUseCase {
         if (diferencia == 0) {
             return; // No hubo cambio; no se incluye en la lista
         }
-        String estado = (diferencia > 0) == mayorEsMejor ? "MEJORA" : "DETERIORO";
+        String estado = (diferencia > 0) == mayorEsMejor ? TREND_IMPROVING : TREND_WORSENING;
         lista.add(new FinancialDataComparison.CampoComparado(
                 campo, valorBase.toPlainString(), valorComp.toPlainString(), estado));
     }
@@ -139,7 +144,7 @@ public class GetFinancialHistoryService implements GetFinancialHistoryUseCase {
         if (diferencia == 0) {
             return;
         }
-        String estado = (diferencia > 0) == mayorEsMejor ? "MEJORA" : "DETERIORO";
+        String estado = (diferencia > 0) == mayorEsMejor ? TREND_IMPROVING : TREND_WORSENING;
         lista.add(new FinancialDataComparison.CampoComparado(
                 campo, String.valueOf(valorBase), String.valueOf(valorComp), estado));
     }
@@ -150,19 +155,19 @@ public class GetFinancialHistoryService implements GetFinancialHistoryUseCase {
      */
     private String computarEstadoScore(Integer scoreBase, Integer scoreComp) {
         if (scoreBase == null && scoreComp == null) {
-            return "SIN_CAMBIO";
+            return TREND_UNCHANGED;
         }
         if (scoreBase == null) {
-            return "MEJORA"; // Ahora tiene score de bureau (antes no disponible)
+            return TREND_IMPROVING; // Ahora tiene score de bureau (antes no disponible)
         }
         if (scoreComp == null) {
-            return "DETERIORO"; // Dejó de tener score de bureau
+            return TREND_WORSENING; // Dejó de tener score de bureau
         }
         int diferencia = Integer.compare(scoreComp, scoreBase);
         if (diferencia == 0) {
-            return "SIN_CAMBIO";
+            return TREND_UNCHANGED;
         }
-        return diferencia > 0 ? "MEJORA" : "DETERIORO";
+        return diferencia > 0 ? TREND_IMPROVING : TREND_WORSENING;
     }
 
     /**
@@ -178,20 +183,20 @@ public class GetFinancialHistoryService implements GetFinancialHistoryUseCase {
             boolean scoreMejoro = comparada.externalBureauScore() > base.externalBureauScore();
 
             if (ratioMejoro && scoreMejoro) {
-                return "MEJORA";
+                return TREND_IMPROVING;
             }
             if (!ratioMejoro && !scoreMejoro && comparacionRatio != 0) {
-                return "DETERIORO";
+                return TREND_WORSENING;
             }
             return "ESTABLE";
         }
 
         // Sin score de bureau en ambas versiones: tendencia basada solo en el ratio de deuda
         if (comparacionRatio < 0) {
-            return "MEJORA";
+            return TREND_IMPROVING;
         }
         if (comparacionRatio > 0) {
-            return "DETERIORO";
+            return TREND_WORSENING;
         }
         return "ESTABLE";
     }
