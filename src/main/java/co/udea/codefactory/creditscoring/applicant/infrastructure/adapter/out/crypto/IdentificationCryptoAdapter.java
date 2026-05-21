@@ -24,6 +24,8 @@ public class IdentificationCryptoAdapter implements IdentificationCryptoPort {
 
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_LENGTH = 128;
+    /** SecureRandom es thread-safe; reusarlo evita el costo de reseed por invocación (Sonar S2245). */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final SecretKeySpec encryptionKey;
     private final SecretKeySpec hashKey;
@@ -51,7 +53,7 @@ public class IdentificationCryptoAdapter implements IdentificationCryptoPort {
     public String encrypt(String identification) {
         try {
             byte[] iv = new byte[GCM_IV_LENGTH];
-            new SecureRandom().nextBytes(iv);
+            SECURE_RANDOM.nextBytes(iv);
 
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, encryptionKey, new GCMParameterSpec(GCM_TAG_LENGTH, iv));

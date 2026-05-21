@@ -10,7 +10,8 @@ public class ResourceNotFoundException extends DomainException {
 
     private final String resourceName;
     private final String fieldName;
-    private final Object fieldValue;
+    /** Marked transient porque {@code Object} no garantiza Serializable (Sonar S1948). */
+    private final transient Object fieldValue;
 
     public ResourceNotFoundException(String resourceName, String fieldName, Object fieldValue) {
         super(String.format("%s not found with %s: '%s'", resourceName, fieldName, fieldValue));
