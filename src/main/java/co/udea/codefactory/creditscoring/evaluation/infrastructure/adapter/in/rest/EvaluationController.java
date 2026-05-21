@@ -174,10 +174,6 @@ public class EvaluationController {
                 .body(toResponse(evaluation));
     }
 
-    // =========================================================================
-    // GET /clasificacion — estáticos ANTES de /{id}
-    // =========================================================================
-
     /** Retorna el resumen de clasificación de riesgo del portafolio. */
     @GetMapping("/clasificacion")
     @PreAuthorize("hasAnyRole('ADMIN','RISK_MANAGER','CREDIT_SUPERVISOR')")
@@ -239,10 +235,6 @@ public class EvaluationController {
         return ResponseEntity.ok(response);
     }
 
-    // =========================================================================
-    // GET /export — ANTES de /{id}
-    // =========================================================================
-
     /**
      * Exporta el listado filtrado en CSV (streaming) o PDF (buffered, máx 1000 filas).
      * Path declarado antes de {@code /{id}} para evitar colisiones.
@@ -288,10 +280,6 @@ public class EvaluationController {
                         "attachment; filename=" + artifact.filename())
                 .body(artifact.payload());
     }
-
-    // =========================================================================
-    // GET /estadisticas — ANTES de /{id}
-    // =========================================================================
 
     /**
      * Retorna estadísticas agregadas del conjunto filtrado de evaluaciones.

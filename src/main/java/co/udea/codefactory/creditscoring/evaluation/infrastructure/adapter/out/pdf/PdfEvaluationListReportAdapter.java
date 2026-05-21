@@ -77,8 +77,8 @@ public class PdfEvaluationListReportAdapter implements EvaluationListReportPort 
             doc.add(table);
             doc.close();
             return baos.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException("Error al generar el PDF del listado de evaluaciones", e);
+        } catch (com.lowagie.text.DocumentException | java.io.IOException e) {
+            throw new IllegalStateException("Error al generar el PDF del listado de evaluaciones", e);
         }
     }
 }

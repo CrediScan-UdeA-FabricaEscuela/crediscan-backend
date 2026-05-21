@@ -1,5 +1,8 @@
 package co.udea.codefactory.creditscoring.evaluation.domain.port.in;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchCriteria;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.ExportFormat;
 
@@ -13,8 +16,32 @@ public interface ExportEvaluationsUseCase {
 
     /**
      * Artefacto de exportación generado (filename + contentType + payload en bytes).
+     * Las implementaciones de {@code equals}/{@code hashCode}/{@code toString}
+     * consideran el contenido del array, no su referencia (Sonar S6218).
      */
-    record ExportArtifact(String filename, String contentType, byte[] payload) {}
+    record ExportArtifact(String filename, String contentType, byte[] payload) {
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ExportArtifact other)) return false;
+            return Objects.equals(filename, other.filename)
+                && Objects.equals(contentType, other.contentType)
+                && Arrays.equals(payload, other.payload);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(filename, contentType, Arrays.hashCode(payload));
+        }
+
+        @Override
+        public String toString() {
+            return "ExportArtifact[filename=" + filename
+                + ", contentType=" + contentType
+                + ", payload=" + Arrays.toString(payload) + "]";
+        }
+    }
 
     /**
      * Exporta el listado filtrado en el formato indicado.
