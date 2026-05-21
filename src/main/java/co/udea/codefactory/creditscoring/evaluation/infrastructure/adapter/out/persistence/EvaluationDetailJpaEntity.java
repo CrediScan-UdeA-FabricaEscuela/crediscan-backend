@@ -11,6 +11,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * Entidad JPA para la tabla evaluation_detail.
@@ -18,6 +23,10 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "evaluation_detail")
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class EvaluationDetailJpaEntity {
 
     @Id
@@ -48,35 +57,8 @@ public class EvaluationDetailJpaEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    // Constructor sin args requerido por JPA
-    protected EvaluationDetailJpaEntity() {}
-
-    public EvaluationDetailJpaEntity(UUID id, UUID variableId, String variableName,
-            String rawValue, BigDecimal score, BigDecimal weight, BigDecimal weightedScore,
-            OffsetDateTime createdAt) {
-        this.id = id;
-        this.variableId = variableId;
-        this.variableName = variableName;
-        this.rawValue = rawValue;
-        this.score = score;
-        this.weight = weight;
-        this.weightedScore = weightedScore;
-        this.createdAt = createdAt;
-    }
-
-    // Setter para la relación bidireccional
+    // Setter manual requerido por la gestión de relación bidireccional en addDetail()
     public void setEvaluation(EvaluationJpaEntity evaluation) {
         this.evaluation = evaluation;
     }
-
-    // Getters
-    public UUID getId() { return id; }
-    public EvaluationJpaEntity getEvaluation() { return evaluation; }
-    public UUID getVariableId() { return variableId; }
-    public String getVariableName() { return variableName; }
-    public String getRawValue() { return rawValue; }
-    public BigDecimal getScore() { return score; }
-    public BigDecimal getWeight() { return weight; }
-    public BigDecimal getWeightedScore() { return weightedScore; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
 }

@@ -1,6 +1,7 @@
 package co.udea.codefactory.creditscoring.shared.security.application.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,13 +12,17 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.LastAdminException;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogEntry;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenBlacklistPort;
 
@@ -58,9 +63,7 @@ class ChangeUserRoleServiceTest {
 
         verify(userRepository, never()).updateRole(TARGET_USER_ID, Role.ANALYST);
         verify(tokenBlacklist, never()).blacklistAllByUserId(TARGET_USER_ID);
-        verify(auditLog, never()).record(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(auditLog, never()).registrar(any());
     }
 
     // --- happy path: updates role + blacklists tokens + writes audit ---
@@ -77,13 +80,14 @@ class ChangeUserRoleServiceTest {
 
         verify(userRepository).updateRole(TARGET_USER_ID, Role.CREDIT_SUPERVISOR);
         verify(tokenBlacklist).blacklistAllByUserId(TARGET_USER_ID);
-        verify(auditLog).record(
-                org.mockito.ArgumentMatchers.eq("USER"),
-                org.mockito.ArgumentMatchers.eq(TARGET_USER_ID),
-                org.mockito.ArgumentMatchers.eq("UPDATE"),
-                org.mockito.ArgumentMatchers.eq("admin"),
-                org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.any());
+
+        ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
+        verify(auditLog).registrar(captor.capture());
+        AuditLogEntry entry = captor.getValue();
+        assertThat(entry.entityType()).isEqualTo("USER");
+        assertThat(entry.entityId()).isEqualTo(TARGET_USER_ID);
+        assertThat(entry.action()).isEqualTo("UPDATE");
+        assertThat(entry.actor()).isEqualTo("admin");
     }
 
     // --- if target user already is ADMIN and there are multiple admins, change is allowed ---

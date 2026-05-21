@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,6 +23,7 @@ import co.udea.codefactory.creditscoring.shared.security.domain.exception.Duplic
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogEntry;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 
 @ExtendWith(MockitoExtension.class)
@@ -131,13 +131,15 @@ class CreateUserServiceTest {
 
         service.create(USERNAME, EMAIL, PASSWORD, Role.ANALYST, ACTOR);
 
-        verify(auditLog).record(
-                eq("USER"),
-                eq(saved.id()),
-                eq("CREATE"),
-                eq(ACTOR),
-                isNull(),
-                any());
+        ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
+        verify(auditLog).registrar(captor.capture());
+        AuditLogEntry entry = captor.getValue();
+        assertThat(entry.entityType()).isEqualTo("USER");
+        assertThat(entry.entityId()).isEqualTo(saved.id());
+        assertThat(entry.action()).isEqualTo("CREATE");
+        assertThat(entry.actor()).isEqualTo(ACTOR);
+        assertThat(entry.dataBefore()).isNull();
+        assertThat(entry.dataAfter()).isNotNull();
     }
 
     @Test
@@ -149,7 +151,9 @@ class CreateUserServiceTest {
 
         service.create(USERNAME, EMAIL, PASSWORD, Role.ANALYST, ACTOR);
 
-        verify(auditLog).record(any(), any(), any(), any(), isNull(), any());
+        ArgumentCaptor<AuditLogEntry> captor = ArgumentCaptor.forClass(AuditLogEntry.class);
+        verify(auditLog).registrar(captor.capture());
+        assertThat(captor.getValue().dataBefore()).isNull();
     }
 
     // --- Duplicate username ---
@@ -180,7 +184,7 @@ class CreateUserServiceTest {
         assertThatThrownBy(() -> service.create(USERNAME, EMAIL, PASSWORD, Role.ANALYST, ACTOR))
                 .isInstanceOf(DuplicateUserException.class);
 
-        verify(auditLog, never()).record(any(), any(), any(), any(), any(), any());
+        verify(auditLog, never()).registrar(any());
     }
 
     // --- Duplicate email ---
@@ -214,7 +218,7 @@ class CreateUserServiceTest {
         assertThatThrownBy(() -> service.create(USERNAME, EMAIL, PASSWORD, Role.ANALYST, ACTOR))
                 .isInstanceOf(DuplicateUserException.class);
 
-        verify(auditLog, never()).record(any(), any(), any(), any(), any(), any());
+        verify(auditLog, never()).registrar(any());
     }
 
     private AppUser buildUser(Role role) {

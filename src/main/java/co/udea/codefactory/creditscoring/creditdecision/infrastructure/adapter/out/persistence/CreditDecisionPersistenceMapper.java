@@ -12,18 +12,18 @@ public class CreditDecisionPersistenceMapper {
 
     /** Convierte el modelo de dominio a entidad JPA. */
     public CreditDecisionJpaEntity toJpaEntity(CreditDecision creditDecision) {
-        return new CreditDecisionJpaEntity(
-                creditDecision.id(),
-                creditDecision.evaluationId(),
-                creditDecision.decision(),
-                creditDecision.observations(),
-                creditDecision.analystId(),
-                creditDecision.decidedAt(),
-                creditDecision.createdAt(),
-                creditDecision.createdBy(),
-                creditDecision.supervisorId(),
-                creditDecision.resolutionDeadlineAt()
-        );
+        return CreditDecisionJpaEntity.builder()
+                .id(creditDecision.id())
+                .evaluationId(creditDecision.evaluationId())
+                .decision(creditDecision.decision())
+                .observations(creditDecision.observations())
+                .decidedBy(creditDecision.analystId())
+                .decidedAt(creditDecision.decidedAt())
+                .createdAt(creditDecision.createdAt())
+                .createdBy(creditDecision.createdBy())
+                .supervisorId(creditDecision.supervisorId())
+                .resolutionDeadlineAt(creditDecision.resolutionDeadlineAt())
+                .build();
     }
 
     /** Convierte la entidad JPA al modelo de dominio. */

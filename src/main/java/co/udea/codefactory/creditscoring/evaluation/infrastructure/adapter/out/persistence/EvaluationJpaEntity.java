@@ -13,6 +13,11 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * Entidad JPA para la tabla evaluation.
@@ -20,6 +25,10 @@ import jakarta.persistence.Table;
  */
 @Entity
 @Table(name = "evaluation")
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class EvaluationJpaEntity {
 
     @Id
@@ -58,34 +67,15 @@ public class EvaluationJpaEntity {
     @Column(name = "created_by", nullable = false, length = 100)
     private String createdBy;
 
+    @Builder.Default
     @OneToMany(mappedBy = "evaluation", cascade = CascadeType.ALL,
                orphanRemoval = true, fetch = FetchType.LAZY)
     private List<EvaluationDetailJpaEntity> details = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "evaluation", cascade = CascadeType.ALL,
                orphanRemoval = true, fetch = FetchType.LAZY)
     private List<EvaluationKnockoutJpaEntity> knockouts = new ArrayList<>();
-
-    // Constructor sin args requerido por JPA
-    protected EvaluationJpaEntity() {}
-
-    public EvaluationJpaEntity(UUID id, UUID applicantId, UUID modelId, UUID financialDataId,
-            BigDecimal totalScore, String riskLevel, boolean knockedOut, String knockoutReasons,
-            OffsetDateTime evaluatedAt, String evaluatedBy,
-            OffsetDateTime createdAt, String createdBy) {
-        this.id = id;
-        this.applicantId = applicantId;
-        this.modelId = modelId;
-        this.financialDataId = financialDataId;
-        this.totalScore = totalScore;
-        this.riskLevel = riskLevel;
-        this.knockedOut = knockedOut;
-        this.knockoutReasons = knockoutReasons;
-        this.evaluatedAt = evaluatedAt;
-        this.evaluatedBy = evaluatedBy;
-        this.createdAt = createdAt;
-        this.createdBy = createdBy;
-    }
 
     /** Agrega un detalle manteniendo la relación bidireccional. */
     public void addDetail(EvaluationDetailJpaEntity detail) {
@@ -98,20 +88,4 @@ public class EvaluationJpaEntity {
         knockout.setEvaluation(this);
         this.knockouts.add(knockout);
     }
-
-    // Getters
-    public UUID getId() { return id; }
-    public UUID getApplicantId() { return applicantId; }
-    public UUID getModelId() { return modelId; }
-    public UUID getFinancialDataId() { return financialDataId; }
-    public BigDecimal getTotalScore() { return totalScore; }
-    public String getRiskLevel() { return riskLevel; }
-    public boolean isKnockedOut() { return knockedOut; }
-    public String getKnockoutReasons() { return knockoutReasons; }
-    public OffsetDateTime getEvaluatedAt() { return evaluatedAt; }
-    public String getEvaluatedBy() { return evaluatedBy; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public String getCreatedBy() { return createdBy; }
-    public List<EvaluationDetailJpaEntity> getDetails() { return details; }
-    public List<EvaluationKnockoutJpaEntity> getKnockouts() { return knockouts; }
 }

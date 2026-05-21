@@ -135,18 +135,18 @@ public class AuditLogController {
     private String buildCsv(List<AuditLogRecord> records) {
         String header = "timestamp,usuario_id,accion,recurso,recurso_id,datos_anteriores,datos_nuevos,ip,resultado,detalles";
         StringBuilder csv = new StringBuilder(header);
-        for (AuditLogRecord record : records) {
+        for (AuditLogRecord entry : records) {
             csv.append('\n')
-               .append(escapeCsv(record.createdAt().toString())).append(',')
-               .append(escapeCsv(record.actor())).append(',')
-               .append(escapeCsv(record.action())).append(',')
-               .append(escapeCsv(record.entityType())).append(',')
-               .append(record.entityId() != null ? escapeCsv(record.entityId().toString()) : "").append(',')
-               .append(escapeCsv(record.dataBefore())).append(',')
-               .append(escapeCsv(record.dataAfter())).append(',')
-               .append(escapeCsv(record.actorIp())).append(',')
-               .append(escapeCsv(record.result())).append(',')
-               .append(escapeCsv(record.details()));
+               .append(escapeCsv(entry.createdAt().toString())).append(',')
+               .append(escapeCsv(entry.actor())).append(',')
+               .append(escapeCsv(entry.action())).append(',')
+               .append(escapeCsv(entry.entityType())).append(',')
+               .append(entry.entityId() != null ? escapeCsv(entry.entityId().toString()) : "").append(',')
+               .append(escapeCsv(entry.dataBefore())).append(',')
+               .append(escapeCsv(entry.dataAfter())).append(',')
+               .append(escapeCsv(entry.actorIp())).append(',')
+               .append(escapeCsv(entry.result())).append(',')
+               .append(escapeCsv(entry.details()));
         }
         return csv.toString();
     }

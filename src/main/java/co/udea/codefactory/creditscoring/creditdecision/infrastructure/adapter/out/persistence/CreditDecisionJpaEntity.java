@@ -14,7 +14,11 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.CreatedBy;
 
 import co.udea.codefactory.creditscoring.creditdecision.domain.model.DecisionStatus;
-import co.udea.codefactory.creditscoring.shared.audit.AuditableEntity;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * Entidad JPA para la tabla credit_decision.
@@ -22,6 +26,10 @@ import co.udea.codefactory.creditscoring.shared.audit.AuditableEntity;
  */
 @Entity
 @Table(name = "credit_decision")
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CreditDecisionJpaEntity {
 
     @Id
@@ -59,36 +67,4 @@ public class CreditDecisionJpaEntity {
 
     // Campos ignorados en esta HU: approved_amount, interest_rate, term_months
     // (corresponden a HUs futuras de aprobación con condiciones)
-
-    // Constructor sin args requerido por JPA
-    protected CreditDecisionJpaEntity() {}
-
-    public CreditDecisionJpaEntity(UUID id, UUID evaluationId, DecisionStatus decision,
-                                    String observations, String decidedBy,
-                                    OffsetDateTime decidedAt,
-                                    OffsetDateTime createdAt, String createdBy,
-                                    String supervisorId, OffsetDateTime resolutionDeadlineAt) {
-        this.id = id;
-        this.evaluationId = evaluationId;
-        this.decision = decision;
-        this.observations = observations;
-        this.decidedBy = decidedBy;
-        this.decidedAt = decidedAt;
-        this.createdAt = createdAt;
-        this.createdBy = createdBy;
-        this.supervisorId = supervisorId;
-        this.resolutionDeadlineAt = resolutionDeadlineAt;
-    }
-
-    // Getters
-    public UUID getId() { return id; }
-    public UUID getEvaluationId() { return evaluationId; }
-    public DecisionStatus getDecision() { return decision; }
-    public String getObservations() { return observations; }
-    public String getDecidedBy() { return decidedBy; }
-    public OffsetDateTime getDecidedAt() { return decidedAt; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public String getCreatedBy() { return createdBy; }
-    public String getSupervisorId() { return supervisorId; }
-    public OffsetDateTime getResolutionDeadlineAt() { return resolutionDeadlineAt; }
 }

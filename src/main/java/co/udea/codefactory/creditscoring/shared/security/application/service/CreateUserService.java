@@ -12,6 +12,7 @@ import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.CreateUserUseCase;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogEntry;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 
 @Service
@@ -54,8 +55,8 @@ public class CreateUserService implements CreateUserUseCase {
 
         AppUser saved = userRepository.save(user, actor);
 
-        auditLog.record("USER", saved.id(), "CREATE", actor, null,
-                Map.of("username", saved.username(), "email", saved.email(), "role", saved.role().name()));
+        auditLog.registrar(AuditLogEntry.of("USER", saved.id(), "CREATE", actor, null,
+                Map.of("username", saved.username(), "email", saved.email(), "role", saved.role().name())));
 
         return saved;
     }

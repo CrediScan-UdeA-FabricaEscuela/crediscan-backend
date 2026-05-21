@@ -18,33 +18,33 @@ public class EvaluationPersistenceMapper {
 
     /** Convierte el agregado de dominio a entidad JPA con sus colecciones. */
     public EvaluationJpaEntity toJpaEntity(Evaluation evaluation) {
-        EvaluationJpaEntity entity = new EvaluationJpaEntity(
-                evaluation.id(),
-                evaluation.applicantId(),
-                evaluation.modelId(),
-                evaluation.financialDataId(),
-                evaluation.totalScore(),
-                evaluation.riskLevel().name(),
-                evaluation.knockedOut(),
-                evaluation.knockoutReasons(),
-                evaluation.evaluatedAt(),
-                evaluation.evaluatedBy(),
-                evaluation.createdAt(),
-                evaluation.createdBy()
-        );
+        EvaluationJpaEntity entity = EvaluationJpaEntity.builder()
+                .id(evaluation.id())
+                .applicantId(evaluation.applicantId())
+                .modelId(evaluation.modelId())
+                .financialDataId(evaluation.financialDataId())
+                .totalScore(evaluation.totalScore())
+                .riskLevel(evaluation.riskLevel().name())
+                .knockedOut(evaluation.knockedOut())
+                .knockoutReasons(evaluation.knockoutReasons())
+                .evaluatedAt(evaluation.evaluatedAt())
+                .evaluatedBy(evaluation.evaluatedBy())
+                .createdAt(evaluation.createdAt())
+                .createdBy(evaluation.createdBy())
+                .build();
 
         // Mapear detalles de variables manteniendo relación bidireccional
         for (EvaluationDetail detail : evaluation.details()) {
-            EvaluationDetailJpaEntity detailEntity = new EvaluationDetailJpaEntity(
-                    detail.id(),
-                    detail.variableId(),
-                    detail.variableName(),
-                    detail.rawValue(),
-                    detail.score(),
-                    detail.weight(),
-                    detail.weightedScore(),
-                    detail.createdAt()
-            );
+            EvaluationDetailJpaEntity detailEntity = EvaluationDetailJpaEntity.builder()
+                    .id(detail.id())
+                    .variableId(detail.variableId())
+                    .variableName(detail.variableName())
+                    .rawValue(detail.rawValue())
+                    .score(detail.score())
+                    .weight(detail.weight())
+                    .weightedScore(detail.weightedScore())
+                    .createdAt(detail.createdAt())
+                    .build();
             entity.addDetail(detailEntity);
         }
 

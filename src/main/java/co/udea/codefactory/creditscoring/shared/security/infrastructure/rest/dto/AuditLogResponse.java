@@ -18,18 +18,18 @@ public record AuditLogResponse(
         String datosNuevos,
         String detalles) {
 
-    public static AuditLogResponse from(AuditLogRecord record) {
+    public static AuditLogResponse from(AuditLogRecord entry) {
         return new AuditLogResponse(
-                record.id(),
-                record.createdAt(),
-                record.entityType(),
-                record.entityId(),
-                record.action(),
-                record.actor(),
-                record.actorIp(),
-                record.result(),
-                record.dataBefore(),
-                record.dataAfter(),
-                record.details());
+                entry.id(),
+                entry.createdAt(),
+                entry.entityType(),
+                entry.entityId(),
+                entry.action(),
+                entry.actor(),
+                entry.actorIp(),
+                entry.result(),
+                entry.dataBefore(),
+                entry.dataAfter(),
+                entry.details());
     }
 }

@@ -24,6 +24,7 @@ import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuthResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogEntry;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenPort;
 
@@ -85,7 +86,7 @@ class AuthenticateServiceTest {
         assertThat(result.token()).isNotBlank();
         assertThat(result.role()).isEqualTo(Role.ADMIN);
         assertThat(result.expiresAt()).isNotNull();
-        verify(auditLog).record("USER", null, "LOGIN", "admin", "127.0.0.1", "SUCCESS", null, null);
+        verify(auditLog).registrar(AuditLogEntry.of("USER", null, "LOGIN", "admin", "127.0.0.1", "SUCCESS", null, null));
     }
 
     // --- bad credentials throw InvalidCredentialsException ---
@@ -97,6 +98,6 @@ class AuthenticateServiceTest {
 
         assertThatThrownBy(() -> service.authenticate("admin", "wrong", "10.0.0.1"))
                 .isInstanceOf(InvalidCredentialsException.class);
-        verify(auditLog).record("USER", null, "LOGIN", "admin", "10.0.0.1", "FAILURE", null, null);
+        verify(auditLog).registrar(AuditLogEntry.of("USER", null, "LOGIN", "admin", "10.0.0.1", "FAILURE", null, null));
     }
 }

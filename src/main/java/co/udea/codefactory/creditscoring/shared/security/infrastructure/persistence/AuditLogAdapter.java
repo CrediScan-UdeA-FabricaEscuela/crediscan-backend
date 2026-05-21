@@ -21,6 +21,7 @@ import co.udea.codefactory.creditscoring.shared.PageRequest;
 import co.udea.codefactory.creditscoring.shared.PagedResult;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogFilter;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AuditLogRecord;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogEntry;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogQueryPort;
 
@@ -38,20 +39,19 @@ public class AuditLogAdapter implements AuditLogPort, AuditLogQueryPort {
     }
 
     @Override
-    public void record(String entityType, UUID entityId, String action, String actor,
-                       String actorIp, String result, Object dataBefore, Object dataAfter) {
+    public void registrar(AuditLogEntry auditEntry) {
         JpaAuditLogEntity entry = new JpaAuditLogEntity();
         Instant now = Instant.now();
         entry.setId(UUID.randomUUID());
         entry.setCreatedAt(now);
-        entry.setEntityType(entityType);
-        entry.setEntityId(entityId);
-        entry.setAction(action);
-        entry.setActor(actor);
-        entry.setActorIp(actorIp);
-        entry.setResult(result);
-        entry.setDataBefore(toJson(dataBefore));
-        entry.setDataAfter(toJson(dataAfter));
+        entry.setEntityType(auditEntry.entityType());
+        entry.setEntityId(auditEntry.entityId());
+        entry.setAction(auditEntry.action());
+        entry.setActor(auditEntry.actor());
+        entry.setActorIp(auditEntry.actorIp());
+        entry.setResult(auditEntry.result());
+        entry.setDataBefore(toJson(auditEntry.dataBefore()));
+        entry.setDataAfter(toJson(auditEntry.dataAfter()));
         jpaRepository.save(entry);
     }
 

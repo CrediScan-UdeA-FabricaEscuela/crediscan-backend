@@ -42,6 +42,7 @@ import co.udea.codefactory.creditscoring.applicant.domain.model.Applicant;
 import co.udea.codefactory.creditscoring.applicant.domain.port.in.ListApplicantsUseCase;
 import co.udea.codefactory.creditscoring.applicant.domain.port.in.RegisterApplicantUseCase;
 import co.udea.codefactory.creditscoring.applicant.domain.port.in.UpdateApplicantUseCase;
+import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.ApplicantFilterParams;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.ApplicantSearchResponse;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.RegisterApplicantRequest;
 import co.udea.codefactory.creditscoring.applicant.infrastructure.adapter.in.rest.dto.RegisterApplicantResponse;
@@ -114,9 +115,10 @@ public class ApplicantController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registrationDateTo,
             @PageableDefault(size = 20, sort = "name") Pageable pageable) {
 
-        ApplicantFilterCriteria criteria = construirCriterios(
+        ApplicantFilterParams filtros = new ApplicantFilterParams(
                 q, incomeMin, incomeMax, employmentType, experienceMin, experienceMax,
-                registrationDateFrom, registrationDateTo, pageable);
+                registrationDateFrom, registrationDateTo);
+        ApplicantFilterCriteria criteria = construirCriterios(filtros, pageable);
 
         PagedResult<ApplicantSummary> results = listApplicantsUseCase.list(
                 criteria, new PageRequest(pageable.getPageNumber(), pageable.getPageSize()));
@@ -163,9 +165,10 @@ public class ApplicantController {
             @RequestParam(value = "fecha_registro_hasta", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate registrationDateTo) {
 
-        ApplicantFilterCriteria criteria = construirCriterios(
+        ApplicantFilterParams filtros = new ApplicantFilterParams(
                 q, incomeMin, incomeMax, employmentType, experienceMin, experienceMax,
-                registrationDateFrom, registrationDateTo, null);
+                registrationDateFrom, registrationDateTo);
+        ApplicantFilterCriteria criteria = construirCriterios(filtros, null);
 
         List<ApplicantSummary> solicitantes = listApplicantsUseCase.export(criteria);
         String csv = construirCsv(solicitantes);
@@ -202,12 +205,7 @@ public class ApplicantController {
      * Ensambla el objeto de criterios a partir de los parámetros individuales del request.
      * Extrae el campo y dirección de ordenamiento del Pageable de Spring cuando está disponible.
      */
-    private ApplicantFilterCriteria construirCriterios(
-            String q, BigDecimal incomeMin, BigDecimal incomeMax, String employmentType,
-            Integer experienceMin, Integer experienceMax,
-            LocalDate registrationDateFrom, LocalDate registrationDateTo,
-            Pageable pageable) {
-
+    private ApplicantFilterCriteria construirCriterios(ApplicantFilterParams filtros, Pageable pageable) {
         String campoCriteria = null;
         String direccionCriteria = null;
 
@@ -218,9 +216,9 @@ public class ApplicantController {
         }
 
         return new ApplicantFilterCriteria(
-                q, incomeMin, incomeMax, employmentType,
-                experienceMin, experienceMax,
-                registrationDateFrom, registrationDateTo,
+                filtros.q(), filtros.incomeMin(), filtros.incomeMax(), filtros.employmentType(),
+                filtros.experienceMin(), filtros.experienceMax(),
+                filtros.registrationDateFrom(), filtros.registrationDateTo(),
                 campoCriteria, direccionCriteria);
     }
 

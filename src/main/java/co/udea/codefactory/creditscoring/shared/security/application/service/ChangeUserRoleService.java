@@ -11,6 +11,7 @@ import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.Role;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.in.ChangeUserRoleUseCase;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AppUserRepositoryPort;
+import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogEntry;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.AuditLogPort;
 import co.udea.codefactory.creditscoring.shared.security.domain.port.out.TokenBlacklistPort;
 import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundException;
@@ -50,6 +51,6 @@ public class ChangeUserRoleService implements ChangeUserRoleUseCase {
 
         userRepository.updateRole(userId, newRole);
         tokenBlacklist.blacklistAllByUserId(userId);
-        auditLog.record("USER", userId, "UPDATE", actor, before, after);
+        auditLog.registrar(AuditLogEntry.of("USER", userId, "UPDATE", actor, before, after));
     }
 }
