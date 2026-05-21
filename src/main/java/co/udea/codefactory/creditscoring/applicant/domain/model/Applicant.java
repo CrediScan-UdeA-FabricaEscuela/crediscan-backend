@@ -89,34 +89,73 @@ public record Applicant(
             String email,
             Clock clock) {
 
+        validarNombre(name);
+        validarIdentificacion(identification);
+        validarFechaNacimiento(birthDate);
+        validarTipoEmpleo(employmentType);
+        validarIngresosMensuales(monthlyIncome);
+        validarAntiguedadLaboral(workExperienceMonths);
+        validarTelefono(phone);
+        validarDireccion(address);
+        validarEmail(email);
+        validarEdadMinima(birthDate, clock);
+    }
+
+    private static void validarNombre(String name) {
         if (name == null || name.isBlank()) {
             throw new ApplicantValidationException(NAME_REQUIRED_MESSAGE);
         }
+    }
+
+    private static void validarIdentificacion(String identification) {
         if (identification == null || identification.isBlank()) {
             throw new ApplicantValidationException(IDENTIFICATION_REQUIRED_MESSAGE);
         }
+    }
+
+    private static void validarFechaNacimiento(LocalDate birthDate) {
         if (birthDate == null) {
             throw new ApplicantValidationException(BIRTH_DATE_REQUIRED_MESSAGE);
         }
+    }
+
+    private static void validarTipoEmpleo(EmploymentType employmentType) {
         if (employmentType == null) {
             throw new ApplicantValidationException("El tipo_empleo es obligatorio");
         }
+    }
+
+    private static void validarIngresosMensuales(BigDecimal monthlyIncome) {
         if (monthlyIncome == null || monthlyIncome.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ApplicantValidationException(INCOME_INVALID_MESSAGE);
         }
+    }
+
+    private static void validarAntiguedadLaboral(Integer workExperienceMonths) {
         if (workExperienceMonths == null || workExperienceMonths < 0) {
             throw new ApplicantValidationException(WORK_EXPERIENCE_INVALID_MESSAGE);
         }
+    }
+
+    private static void validarTelefono(String phone) {
         if (phone != null && phone.length() > 20) {
             throw new ApplicantValidationException(PHONE_TOO_LONG_MESSAGE);
         }
+    }
+
+    private static void validarDireccion(String address) {
         if (address != null && address.length() > 500) {
             throw new ApplicantValidationException(ADDRESS_TOO_LONG_MESSAGE);
         }
+    }
+
+    private static void validarEmail(String email) {
         if (email != null && !email.isBlank() && !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
             throw new ApplicantValidationException(EMAIL_INVALID_MESSAGE);
         }
+    }
 
+    private static void validarEdadMinima(LocalDate birthDate, Clock clock) {
         LocalDate now = LocalDate.now(Objects.requireNonNullElse(clock, Clock.systemUTC()));
         int age = Period.between(birthDate, now).getYears();
         if (age < 18) {

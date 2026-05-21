@@ -54,22 +54,10 @@ public class ScoringCalculator {
      */
     public ScoringResult calcular(ScoringModel modelo, UUID contextoId, Map<String, BigDecimal> valores) {
         // 1. Evaluar reglas knockout en orden de prioridad (CA3, RN2, RN5)
-        List<KnockoutRule> koRules = koRepo.findActivasByModeloId(modelo.id());
-        List<KnockoutEvaluationDetail> koEvaluadas = new ArrayList<>();
-
-        for (KnockoutRule regla : koRules) {
-            BigDecimal valorObservado = buscarValor(valores, regla.campo())
-                    .orElse(BigDecimal.ZERO); // RN3: campo sin dato → valor 0
-
-            boolean activada = regla.evaluar(valorObservado);
-            koEvaluadas.add(new KnockoutEvaluationDetail(
-                    regla.id(), regla.campo(), regla.operador(),
-                    regla.umbral(), valorObservado, activada, regla.mensaje()));
-
-            if (activada) {
-                // RN2: rechazo inmediato — no se calcula el puntaje
-                return ScoringResult.rechazado(modelo.id(), contextoId, koEvaluadas, regla.mensaje());
-            }
+        // Si alguna regla se activa, el Optional contiene el resultado de rechazo inmediato (RN2)
+        ResultadoKO ko = evaluarKnockouts(modelo, contextoId, valores);
+        if (ko.rechazo != null) {
+            return ko.rechazo;
         }
 
         // 2. Calcular puntaje ponderado (CA1)
@@ -77,53 +65,104 @@ public class ScoringCalculator {
         BigDecimal puntajeFinal = BigDecimal.ZERO;
 
         for (ModelVariable mv : modelo.variables()) {
-            ScoringVariable variable = variableRepo.findById(mv.variableId()).orElse(null);
-            if (variable == null) {
+            VariableScoreDetail detalle = calcularDetalleVariable(mv, valores);
+            if (detalle == null) {
                 continue; // variable eliminada — se omite del cálculo
             }
-
-            String campoNormalizado = normalizarNombre(variable.nombre());
-            BigDecimal valorObservado = buscarValor(valores, campoNormalizado)
-                    .orElse(BigDecimal.ZERO); // CA2/RN3: sin dato → puntaje 0
-
-            int puntajeParcial;
-            String etiquetaRango;
-
-            if (variable.tipo() == VariableType.NUMERIC) {
-                VariableRange rango = buscarRangoNumerico(variable.rangos(), valorObservado);
-                if (rango != null) {
-                    puntajeParcial = rango.puntaje();
-                    etiquetaRango = rango.etiqueta() != null ? rango.etiqueta() : "Sin etiqueta";
-                } else {
-                    puntajeParcial = 0;
-                    etiquetaRango = "Fuera de rango";
-                }
-            } else {
-                VariableCategory cat = buscarCategoria(
-                        variable.categorias(), valorObservado.toPlainString());
-                if (cat != null) {
-                    puntajeParcial = cat.puntaje();
-                    etiquetaRango = cat.categoria();
-                } else {
-                    puntajeParcial = 0;
-                    etiquetaRango = "Sin categoría";
-                }
-            }
-
-            BigDecimal contribucion = BigDecimal.valueOf(puntajeParcial)
-                    .multiply(mv.peso())
-                    .setScale(4, RoundingMode.HALF_UP);
-            puntajeFinal = puntajeFinal.add(contribucion);
-
-            desglose.add(new VariableScoreDetail(
-                    variable.id(), variable.nombre(),
-                    valorObservado, etiquetaRango,
-                    puntajeParcial, mv.peso(), contribucion));
+            puntajeFinal = puntajeFinal.add(detalle.contribucion());
+            desglose.add(detalle);
         }
 
         puntajeFinal = puntajeFinal.setScale(2, RoundingMode.HALF_UP);
 
-        return ScoringResult.aprobado(modelo.id(), contextoId, puntajeFinal, desglose, koEvaluadas);
+        return ScoringResult.aprobado(modelo.id(), contextoId, puntajeFinal, desglose, ko.evaluadas);
+    }
+
+    /** Contenedor interno para el resultado de la evaluación de reglas KO. */
+    private static final class ResultadoKO {
+        final List<KnockoutEvaluationDetail> evaluadas;
+        final ScoringResult rechazo; // null si ninguna regla fue activada
+
+        ResultadoKO(List<KnockoutEvaluationDetail> evaluadas, ScoringResult rechazo) {
+            this.evaluadas = evaluadas;
+            this.rechazo = rechazo;
+        }
+    }
+
+    /**
+     * Evalúa todas las reglas knockout del modelo en orden de prioridad.
+     * Si una regla se activa, devuelve el ScoringResult de rechazo en el campo {@code rechazo}.
+     * Si ninguna se activa, {@code rechazo} es null y {@code evaluadas} contiene el desglose completo.
+     */
+    private ResultadoKO evaluarKnockouts(
+            ScoringModel modelo, UUID contextoId, Map<String, BigDecimal> valores) {
+        List<KnockoutRule> koRules = koRepo.findActivasByModeloId(modelo.id());
+        List<KnockoutEvaluationDetail> koEvaluadas = new ArrayList<>();
+
+        for (KnockoutRule regla : koRules) {
+            BigDecimal valorObservado = buscarValor(valores, regla.campo())
+                    .orElse(BigDecimal.ZERO); // RN3: campo sin dato → valor 0
+            boolean activada = regla.evaluar(valorObservado);
+            koEvaluadas.add(new KnockoutEvaluationDetail(
+                    regla.id(), regla.campo(), regla.operador(),
+                    regla.umbral(), valorObservado, activada, regla.mensaje()));
+            if (activada) {
+                // RN2: rechazo inmediato — no se calcula el puntaje
+                ScoringResult rechazo = ScoringResult.rechazado(
+                        modelo.id(), contextoId, koEvaluadas, regla.mensaje());
+                return new ResultadoKO(koEvaluadas, rechazo);
+            }
+        }
+        return new ResultadoKO(koEvaluadas, null);
+    }
+
+    /**
+     * Calcula el detalle de puntaje para una variable del modelo.
+     * Devuelve null si la variable ya no existe en el repositorio.
+     */
+    private VariableScoreDetail calcularDetalleVariable(
+            ModelVariable mv, Map<String, BigDecimal> valores) {
+        ScoringVariable variable = variableRepo.findById(mv.variableId()).orElse(null);
+        if (variable == null) {
+            return null;
+        }
+
+        String campoNormalizado = normalizarNombre(variable.nombre());
+        BigDecimal valorObservado = buscarValor(valores, campoNormalizado)
+                .orElse(BigDecimal.ZERO); // CA2/RN3: sin dato → puntaje 0
+
+        int puntajeParcial;
+        String etiquetaRango;
+
+        if (variable.tipo() == VariableType.NUMERIC) {
+            // Resolución de puntaje para variables numéricas por rango
+            puntajeParcial = 0;
+            etiquetaRango = "Fuera de rango";
+            VariableRange rango = buscarRangoNumerico(variable.rangos(), valorObservado);
+            if (rango != null) {
+                puntajeParcial = rango.puntaje();
+                etiquetaRango = rango.etiqueta() != null ? rango.etiqueta() : "Sin etiqueta";
+            }
+        } else {
+            // Resolución de puntaje para variables categóricas
+            puntajeParcial = 0;
+            etiquetaRango = "Sin categoría";
+            VariableCategory cat = buscarCategoria(
+                    variable.categorias(), valorObservado.toPlainString());
+            if (cat != null) {
+                puntajeParcial = cat.puntaje();
+                etiquetaRango = cat.categoria();
+            }
+        }
+
+        BigDecimal contribucion = BigDecimal.valueOf(puntajeParcial)
+                .multiply(mv.peso())
+                .setScale(4, RoundingMode.HALF_UP);
+
+        return new VariableScoreDetail(
+                variable.id(), variable.nombre(),
+                valorObservado, etiquetaRango,
+                puntajeParcial, mv.peso(), contribucion);
     }
 
     // -------------------------------------------------------------------------

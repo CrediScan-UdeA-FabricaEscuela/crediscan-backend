@@ -91,33 +91,42 @@ public class AuditLogAdapter implements AuditLogPort, AuditLogQueryPort {
     }
 
     private Specification<JpaAuditLogEntity> buildSpecification(AuditLogFilter filter) {
+        // Delega la construcción de predicados a un método auxiliar para reducir la complejidad cognitiva
         return (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            if (filter.from() != null) {
-                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), filter.from()));
-            }
-            if (filter.to() != null) {
-                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), filter.to()));
-            }
-            if (filter.actor() != null) {
-                predicates.add(criteriaBuilder.equal(root.get("actor"), filter.actor()));
-            }
-            if (filter.action() != null) {
-                predicates.add(criteriaBuilder.equal(root.get("action"), filter.action()));
-            }
-            if (filter.entityType() != null) {
-                predicates.add(criteriaBuilder.equal(root.get("entityType"), filter.entityType()));
-            }
-            if (filter.entityId() != null) {
-                predicates.add(criteriaBuilder.equal(root.get("entityId"), filter.entityId()));
-            }
-            if (filter.actorIp() != null) {
-                predicates.add(criteriaBuilder.equal(root.get("actorIp"), filter.actorIp()));
-            }
-
+            List<Predicate> predicates = buildPredicates(filter, root, criteriaBuilder);
             return predicates.isEmpty() ? criteriaBuilder.conjunction() : criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    // Construye la lista de predicados según los campos no nulos del filtro
+    private List<Predicate> buildPredicates(AuditLogFilter filter,
+            jakarta.persistence.criteria.Root<JpaAuditLogEntity> root,
+            jakarta.persistence.criteria.CriteriaBuilder criteriaBuilder) {
+        List<Predicate> predicates = new ArrayList<>();
+
+        if (filter.from() != null) {
+            predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), filter.from()));
+        }
+        if (filter.to() != null) {
+            predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), filter.to()));
+        }
+        if (filter.actor() != null) {
+            predicates.add(criteriaBuilder.equal(root.get("actor"), filter.actor()));
+        }
+        if (filter.action() != null) {
+            predicates.add(criteriaBuilder.equal(root.get("action"), filter.action()));
+        }
+        if (filter.entityType() != null) {
+            predicates.add(criteriaBuilder.equal(root.get("entityType"), filter.entityType()));
+        }
+        if (filter.entityId() != null) {
+            predicates.add(criteriaBuilder.equal(root.get("entityId"), filter.entityId()));
+        }
+        if (filter.actorIp() != null) {
+            predicates.add(criteriaBuilder.equal(root.get("actorIp"), filter.actorIp()));
+        }
+
+        return predicates;
     }
 
     private String toJson(Object obj) {

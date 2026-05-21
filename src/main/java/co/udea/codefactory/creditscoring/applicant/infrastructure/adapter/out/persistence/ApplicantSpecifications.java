@@ -6,7 +6,10 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 
 import org.springframework.data.jpa.domain.Specification;
 
@@ -32,56 +35,122 @@ class ApplicantSpecifications {
         return (root, query, cb) -> {
             List<Predicate> predicados = new ArrayList<>();
 
-            // Búsqueda libre: hash exacto de identificación OR nombre parcial (ILIKE)
-            boolean tieneHash = identificationHash != null;
-            boolean tieneQ = criteria.q() != null && !criteria.q().isBlank();
-            if (tieneHash || tieneQ) {
-                List<Predicate> predicadosBusqueda = new ArrayList<>();
-                if (tieneHash) {
-                    predicadosBusqueda.add(cb.equal(root.get("identificationHash"), identificationHash));
-                }
-                if (tieneQ) {
-                    String patronNombre = "%" + criteria.q().trim().toLowerCase() + "%";
-                    predicadosBusqueda.add(cb.like(cb.lower(root.get("name")), patronNombre));
-                }
-                predicados.add(cb.or(predicadosBusqueda.toArray(new Predicate[0])));
-            }
-
-            // Filtro por rango de ingresos mensuales
-            if (criteria.incomeMin() != null) {
-                predicados.add(cb.greaterThanOrEqualTo(root.get("monthlyIncome"), criteria.incomeMin()));
-            }
-            if (criteria.incomeMax() != null) {
-                predicados.add(cb.lessThanOrEqualTo(root.get("monthlyIncome"), criteria.incomeMax()));
-            }
-
-            // Filtro por tipo de empleo (coincidencia exacta con el valor almacenado en DB)
-            if (criteria.employmentType() != null && !criteria.employmentType().isBlank()) {
-                predicados.add(cb.equal(root.get("employmentType"), criteria.employmentType()));
-            }
-
-            // Filtro por rango de antigüedad laboral en meses
-            if (criteria.experienceMin() != null) {
-                predicados.add(cb.greaterThanOrEqualTo(root.get("workExperienceMonths"), criteria.experienceMin()));
-            }
-            if (criteria.experienceMax() != null) {
-                predicados.add(cb.lessThanOrEqualTo(root.get("workExperienceMonths"), criteria.experienceMax()));
-            }
-
-            // Filtro por rango de fecha de registro (inicio y fin del día en UTC)
-            if (criteria.registrationDateFrom() != null) {
-                OffsetDateTime desde = criteria.registrationDateFrom().atStartOfDay().atOffset(ZoneOffset.UTC);
-                predicados.add(cb.greaterThanOrEqualTo(root.get("createdAt"), desde));
-            }
-            if (criteria.registrationDateTo() != null) {
-                OffsetDateTime hasta = criteria.registrationDateTo().atTime(LocalTime.MAX).atOffset(ZoneOffset.UTC);
-                predicados.add(cb.lessThanOrEqualTo(root.get("createdAt"), hasta));
-            }
+            agregarFiltroBusquedaLibre(predicados, criteria, identificationHash, root, query, cb);
+            agregarFiltroIngresoMinimo(predicados, criteria, root, cb);
+            agregarFiltroIngresoMaximo(predicados, criteria, root, cb);
+            agregarFiltroTipoEmpleo(predicados, criteria, root, cb);
+            agregarFiltroExperienciaMinima(predicados, criteria, root, cb);
+            agregarFiltroExperienciaMaxima(predicados, criteria, root, cb);
+            agregarFiltroFechaRegistroDesde(predicados, criteria, root, cb);
+            agregarFiltroFechaRegistroHasta(predicados, criteria, root, cb);
 
             // Sin predicados → retorna todos los registros (conjunción vacía)
             return predicados.isEmpty()
                     ? cb.conjunction()
                     : cb.and(predicados.toArray(new Predicate[0]));
         };
+    }
+
+    /** Búsqueda libre: hash exacto de identificación OR nombre parcial (ILIKE). */
+    private static void agregarFiltroBusquedaLibre(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            String identificationHash,
+            Root<ApplicantJpaEntity> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb) {
+        boolean tieneHash = identificationHash != null;
+        boolean tieneQ = criteria.q() != null && !criteria.q().isBlank();
+        if (!tieneHash && !tieneQ) {
+            return;
+        }
+        List<Predicate> predicadosBusqueda = new ArrayList<>();
+        if (tieneHash) {
+            predicadosBusqueda.add(cb.equal(root.get("identificationHash"), identificationHash));
+        }
+        if (tieneQ) {
+            String patronNombre = "%" + criteria.q().trim().toLowerCase() + "%";
+            predicadosBusqueda.add(cb.like(cb.lower(root.get("name")), patronNombre));
+        }
+        predicados.add(cb.or(predicadosBusqueda.toArray(new Predicate[0])));
+    }
+
+    /** Filtro por ingreso mensual mínimo. */
+    private static void agregarFiltroIngresoMinimo(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            Root<ApplicantJpaEntity> root,
+            CriteriaBuilder cb) {
+        if (criteria.incomeMin() != null) {
+            predicados.add(cb.greaterThanOrEqualTo(root.get("monthlyIncome"), criteria.incomeMin()));
+        }
+    }
+
+    /** Filtro por ingreso mensual máximo. */
+    private static void agregarFiltroIngresoMaximo(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            Root<ApplicantJpaEntity> root,
+            CriteriaBuilder cb) {
+        if (criteria.incomeMax() != null) {
+            predicados.add(cb.lessThanOrEqualTo(root.get("monthlyIncome"), criteria.incomeMax()));
+        }
+    }
+
+    /** Filtro por tipo de empleo (coincidencia exacta con el valor almacenado en DB). */
+    private static void agregarFiltroTipoEmpleo(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            Root<ApplicantJpaEntity> root,
+            CriteriaBuilder cb) {
+        if (criteria.employmentType() != null && !criteria.employmentType().isBlank()) {
+            predicados.add(cb.equal(root.get("employmentType"), criteria.employmentType()));
+        }
+    }
+
+    /** Filtro por antigüedad laboral mínima en meses. */
+    private static void agregarFiltroExperienciaMinima(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            Root<ApplicantJpaEntity> root,
+            CriteriaBuilder cb) {
+        if (criteria.experienceMin() != null) {
+            predicados.add(cb.greaterThanOrEqualTo(root.get("workExperienceMonths"), criteria.experienceMin()));
+        }
+    }
+
+    /** Filtro por antigüedad laboral máxima en meses. */
+    private static void agregarFiltroExperienciaMaxima(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            Root<ApplicantJpaEntity> root,
+            CriteriaBuilder cb) {
+        if (criteria.experienceMax() != null) {
+            predicados.add(cb.lessThanOrEqualTo(root.get("workExperienceMonths"), criteria.experienceMax()));
+        }
+    }
+
+    /** Filtro por fecha de registro desde (inicio del día en UTC). */
+    private static void agregarFiltroFechaRegistroDesde(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            Root<ApplicantJpaEntity> root,
+            CriteriaBuilder cb) {
+        if (criteria.registrationDateFrom() != null) {
+            OffsetDateTime desde = criteria.registrationDateFrom().atStartOfDay().atOffset(ZoneOffset.UTC);
+            predicados.add(cb.greaterThanOrEqualTo(root.get("createdAt"), desde));
+        }
+    }
+
+    /** Filtro por fecha de registro hasta (fin del día en UTC). */
+    private static void agregarFiltroFechaRegistroHasta(
+            List<Predicate> predicados,
+            ApplicantFilterCriteria criteria,
+            Root<ApplicantJpaEntity> root,
+            CriteriaBuilder cb) {
+        if (criteria.registrationDateTo() != null) {
+            OffsetDateTime hasta = criteria.registrationDateTo().atTime(LocalTime.MAX).atOffset(ZoneOffset.UTC);
+            predicados.add(cb.lessThanOrEqualTo(root.get("createdAt"), hasta));
+        }
     }
 }
