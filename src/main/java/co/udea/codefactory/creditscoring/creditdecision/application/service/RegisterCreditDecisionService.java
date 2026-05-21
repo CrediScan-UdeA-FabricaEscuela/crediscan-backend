@@ -31,8 +31,9 @@ import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundExcept
  *   <li>Persistir la decisión</li>
  * </ol>
  *
- * <p>Nota: La notificación de escalamiento (RN7) se deja como TODO — no hay
- * sistema de eventos implementado actualmente.</p>
+ * <p>Nota: La notificación de escalamiento (RN7) se implementa mediante
+ * {@link EscalationNotificationPort}; el adaptador actual emite a log y
+ * será reemplazado por un bus de eventos cuando esté disponible.</p>
  */
 @Service
 @Transactional

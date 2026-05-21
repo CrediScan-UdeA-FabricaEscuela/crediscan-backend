@@ -132,6 +132,17 @@ sonarqube {
         property("sonar.projectName", "Credit Scoring Engine")
         property("sonar.java.coveragePlugin", "jacoco")
         property("sonar.coverage.jacoco.xmlReportPaths", "${layout.buildDirectory}/reports/jacoco/test/jacocoTestReport.xml")
+
+        // Excluir reglas Oracle/PLSQL en migraciones Flyway — el proyecto usa PostgreSQL,
+        // donde VARCHAR es el tipo correcto (VARCHAR2 no existe). Ídem duplicados en seed data.
+        property("sonar.issue.ignore.multicriteria", "plsql1,plsql2,seed1")
+        property("sonar.issue.ignore.multicriteria.plsql1.ruleKey", "plsql:*")
+        property("sonar.issue.ignore.multicriteria.plsql1.resourceKey", "**/db/migration/*.sql")
+        property("sonar.issue.ignore.multicriteria.plsql2.ruleKey", "flyway:*")
+        property("sonar.issue.ignore.multicriteria.plsql2.resourceKey", "**/db/migration/*.sql")
+        // Literales duplicados en seed data SQL son inherentes (filas con mismos valores).
+        property("sonar.issue.ignore.multicriteria.seed1.ruleKey", "*:S1192")
+        property("sonar.issue.ignore.multicriteria.seed1.resourceKey", "**/db/migration/V15__seed_data.sql")
     }
 }
 
