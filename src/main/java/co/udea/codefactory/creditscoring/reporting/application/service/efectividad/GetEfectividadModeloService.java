@@ -100,28 +100,41 @@ public class GetEfectividadModeloService implements GetEfectividadModeloUseCase 
         for (RiskLevel level : MATRIX_RISK_LEVELS) {
             map.put(level, new EnumMap<>(DecisionStatus.class));
         }
-
-        for (MatrizAggregate agg : raw) {
-            RiskLevel riskLevel;
-            try {
-                riskLevel = RiskLevel.valueOf(agg.riskLevel());
-            } catch (IllegalArgumentException e) {
-                continue; // ignora valores desconocidos
-            }
-            // Decisión bloqueada #5: REJECTED se agrupa bajo VERY_HIGH
-            RiskLevel efectivo = ConcordanceClassifier.effectiveLevel(riskLevel);
-
-            DecisionStatus decision;
-            try {
-                decision = DecisionStatus.valueOf(agg.decision());
-            } catch (IllegalArgumentException e) {
-                continue;
-            }
-
-            Map<DecisionStatus, Long> decMap = map.get(efectivo);
-            decMap.merge(decision, agg.count(), Long::sum);
-        }
+        raw.forEach(agg -> acumularAggregate(agg, map));
         return map;
+    }
+
+    /**
+     * Acumula un aggregate en el mapa de conteos; ignora valores de enum desconocidos.
+     */
+    private void acumularAggregate(
+            MatrizAggregate agg,
+            Map<RiskLevel, Map<DecisionStatus, Long>> map) {
+        RiskLevel riskLevel = parsearRiskLevel(agg.riskLevel());
+        if (riskLevel == null) return;
+
+        DecisionStatus decision = parsearDecision(agg.decision());
+        if (decision == null) return;
+
+        // Decisión bloqueada #5: REJECTED se agrupa bajo VERY_HIGH
+        RiskLevel efectivo = ConcordanceClassifier.effectiveLevel(riskLevel);
+        map.get(efectivo).merge(decision, agg.count(), Long::sum);
+    }
+
+    private static RiskLevel parsearRiskLevel(String value) {
+        try {
+            return RiskLevel.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return null; // ignora valores desconocidos
+        }
+    }
+
+    private static DecisionStatus parsearDecision(String value) {
+        try {
+            return DecisionStatus.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return null; // ignora valores desconocidos
+        }
     }
 
     /**

@@ -48,12 +48,12 @@ class CreditDecisionIntegrationTest {
         // Limpiar tablas en orden correcto para no violar FK
         // Usamos TRUNCATE CASCADE para evitar FK violations
         // Solo truncamos tablas que existen en el schema de test
-        try { jdbcTemplate.update("TRUNCATE TABLE credit_decision CASCADE"); } catch (Exception ignored) {}
-        try { jdbcTemplate.update("TRUNCATE TABLE evaluation CASCADE"); } catch (Exception ignored) {}
-        try { jdbcTemplate.update("TRUNCATE TABLE financial_data CASCADE"); } catch (Exception ignored) {}
-        try { jdbcTemplate.update("TRUNCATE TABLE scoring_model CASCADE"); } catch (Exception ignored) {}
-        try { jdbcTemplate.update("TRUNCATE TABLE scoring_variable CASCADE"); } catch (Exception ignored) {}
-        try { jdbcTemplate.update("TRUNCATE TABLE applicant CASCADE"); } catch (Exception ignored) {}
+        jdbcTemplate.update("TRUNCATE TABLE credit_decision CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE evaluation CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE financial_data CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE scoring_model CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE scoring_variable CASCADE");
+        jdbcTemplate.update("TRUNCATE TABLE applicant CASCADE");
 
         // Crear datos base
         try {

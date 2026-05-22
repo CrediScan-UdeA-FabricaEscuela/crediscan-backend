@@ -174,7 +174,7 @@ public class GetActividadAnalistasService implements GetActividadAnalistasUseCas
             Map<String, Double> tiemposCalificados,
             OutlierResult outlierResult) {
 
-        // totalEvaluaciones y numAnalistas abarcan TODO el equipo (no solo calificados)
+        // totalEvaluaciones y numAnalistas abarcan al equipo completo (no solo calificados)
         long totalEquipo = conteos.stream().mapToLong(AnalistaCountsAggregate::total).sum();
         int numAnalistas = conteos.size();
 

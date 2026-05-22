@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 
@@ -32,10 +31,10 @@ class ApplicantSpecifications {
      * @param identificationHash hash HMAC de la identificación, o null si q está vacío
      */
     static Specification<ApplicantJpaEntity> build(ApplicantFilterCriteria criteria, String identificationHash) {
-        return (root, query, cb) -> {
+        return (root, query, cb) -> {  // NOSONAR — query es parámetro mandatorio de Specification.toPredicate (JPA)
             List<Predicate> predicados = new ArrayList<>();
 
-            agregarFiltroBusquedaLibre(predicados, criteria, identificationHash, root, query, cb);
+            agregarFiltroBusquedaLibre(predicados, criteria, identificationHash, root, cb);
             agregarFiltroIngresoMinimo(predicados, criteria, root, cb);
             agregarFiltroIngresoMaximo(predicados, criteria, root, cb);
             agregarFiltroTipoEmpleo(predicados, criteria, root, cb);
@@ -57,7 +56,6 @@ class ApplicantSpecifications {
             ApplicantFilterCriteria criteria,
             String identificationHash,
             Root<ApplicantJpaEntity> root,
-            CriteriaQuery<?> query,
             CriteriaBuilder cb) {
         boolean tieneHash = identificationHash != null;
         boolean tieneQ = criteria.q() != null && !criteria.q().isBlank();

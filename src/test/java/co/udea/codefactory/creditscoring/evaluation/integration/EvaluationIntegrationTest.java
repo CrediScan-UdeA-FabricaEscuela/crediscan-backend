@@ -45,19 +45,19 @@ class EvaluationIntegrationTest {
 
     @BeforeEach
     void limpiar() {
-        // Eliminar en orden correcto por FK — evaluar si la tabla existe
-        try { jdbc.update("DELETE FROM evaluation_knockout"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM evaluation_detail"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM evaluation"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM credit_decision"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM knockout_rule"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM model_variable"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM scoring_model"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM variable_range"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM variable_category"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM scoring_variable"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM financial_data"); } catch (Exception ignored) {}
-        try { jdbc.update("DELETE FROM applicant WHERE created_by = 'user'"); } catch (Exception ignored) {}
+        // Eliminar en orden correcto por FK
+        jdbc.update("DELETE FROM evaluation_knockout");
+        jdbc.update("DELETE FROM evaluation_detail");
+        jdbc.update("DELETE FROM evaluation");
+        jdbc.update("DELETE FROM credit_decision");
+        jdbc.update("DELETE FROM knockout_rule");
+        jdbc.update("DELETE FROM model_variable");
+        jdbc.update("DELETE FROM scoring_model");
+        jdbc.update("DELETE FROM variable_range");
+        jdbc.update("DELETE FROM variable_category");
+        jdbc.update("DELETE FROM scoring_variable");
+        jdbc.update("DELETE FROM financial_data");
+        jdbc.update("DELETE FROM applicant WHERE created_by = 'user'");
     }
 
     // =========================================================================
