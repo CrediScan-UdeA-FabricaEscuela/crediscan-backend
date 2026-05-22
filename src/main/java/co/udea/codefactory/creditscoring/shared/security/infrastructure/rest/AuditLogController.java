@@ -118,7 +118,7 @@ public class AuditLogController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=auditoria.csv")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
                 .body(csv);
     }
 

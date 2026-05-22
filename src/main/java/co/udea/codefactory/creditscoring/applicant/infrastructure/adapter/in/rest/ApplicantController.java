@@ -175,7 +175,7 @@ public class ApplicantController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=solicitantes.csv")
-                .contentType(MediaType.TEXT_PLAIN)
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8"))
                 .body(csv);
     }
 
