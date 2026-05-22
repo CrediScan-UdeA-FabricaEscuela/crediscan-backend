@@ -1,6 +1,7 @@
 package co.udea.codefactory.creditscoring.evaluation.application.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import co.udea.codefactory.creditscoring.evaluation.domain.exception.EvaluationValidationException;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchCriteria;
@@ -26,6 +27,7 @@ public class SearchEvaluationsService implements SearchEvaluationsUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PagedResult<EvaluationSearchItem> search(EvaluationSearchCriteria criteria, PageRequest page) {
         if (page.size() > MAX_PAGE_SIZE) {
             throw new EvaluationValidationException(

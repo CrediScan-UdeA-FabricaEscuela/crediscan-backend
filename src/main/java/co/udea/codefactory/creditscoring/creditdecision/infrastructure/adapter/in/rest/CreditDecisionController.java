@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import co.udea.codefactory.creditscoring.creditdecision.application.dto.RegisterCreditDecisionCommand;
 import co.udea.codefactory.creditscoring.creditdecision.domain.model.CreditDecision;
+import co.udea.codefactory.creditscoring.creditdecision.domain.port.in.GetCreditDecisionUseCase;
 import co.udea.codefactory.creditscoring.creditdecision.domain.port.in.RegisterCreditDecisionUseCase;
-import co.udea.codefactory.creditscoring.creditdecision.domain.port.out.CreditDecisionRepositoryPort;
 import co.udea.codefactory.creditscoring.creditdecision.infrastructure.adapter.in.rest.dto.CreditDecisionResponse;
 import co.udea.codefactory.creditscoring.creditdecision.infrastructure.adapter.in.rest.dto.RegisterCreditDecisionRequest;
 import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundException;
@@ -33,12 +33,12 @@ import co.udea.codefactory.creditscoring.shared.exception.ResourceNotFoundExcept
 public class CreditDecisionController {
 
     private final RegisterCreditDecisionUseCase registerCreditDecisionUseCase;
-    private final CreditDecisionRepositoryPort creditDecisionRepository;
+    private final GetCreditDecisionUseCase getCreditDecisionUseCase;
 
     public CreditDecisionController(RegisterCreditDecisionUseCase registerCreditDecisionUseCase,
-            CreditDecisionRepositoryPort creditDecisionRepository) {
+            GetCreditDecisionUseCase getCreditDecisionUseCase) {
         this.registerCreditDecisionUseCase = registerCreditDecisionUseCase;
-        this.creditDecisionRepository = creditDecisionRepository;
+        this.getCreditDecisionUseCase = getCreditDecisionUseCase;
     }
 
     /**
@@ -76,13 +76,13 @@ public class CreditDecisionController {
     @GetMapping("/{id}/decision")
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST','CREDIT_SUPERVISOR','RISK_MANAGER')")
     public ResponseEntity<CreditDecisionResponse> obtenerDecision(@PathVariable UUID id) {
-        return creditDecisionRepository.existsByEvaluationId(id)
+        return getCreditDecisionUseCase.existsByEvaluationId(id)
                 ? ResponseEntity.ok(toResponse(findDecision(id)))
                 : ResponseEntity.notFound().build();
     }
 
     private CreditDecision findDecision(UUID evaluationId) {
-        return creditDecisionRepository.findByEvaluationId(evaluationId)
+        return getCreditDecisionUseCase.findByEvaluationId(evaluationId)
                 .orElseThrow(() -> new ResourceNotFoundException("CreditDecision", "evaluationId", evaluationId));
     }
 

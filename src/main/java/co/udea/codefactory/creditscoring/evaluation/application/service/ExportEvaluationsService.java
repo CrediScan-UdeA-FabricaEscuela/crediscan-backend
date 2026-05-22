@@ -1,5 +1,6 @@
 package co.udea.codefactory.creditscoring.evaluation.application.service;
 
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -9,28 +10,30 @@ import co.udea.codefactory.creditscoring.evaluation.domain.model.search.Evaluati
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchItem;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.ExportFormat;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.ExportEvaluationsUseCase;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationListCsvPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationListReportPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationRepositoryPort;
 import co.udea.codefactory.creditscoring.shared.PageRequest;
 
 /**
- * Servicio de aplicación para exportar el listado filtrado de evaluaciones en PDF.
- *
- * <p>El export CSV es responsabilidad del controlador (streaming directo).
- * Este servicio sólo maneja PDF (buffered, capped a 1000 filas).</p>
+ * Servicio de aplicación para exportar el listado filtrado de evaluaciones en PDF o CSV.
  */
 @Service
 public class ExportEvaluationsService implements ExportEvaluationsUseCase {
 
     private static final long PDF_MAX_ROWS = 1000L;
+    private static final int CSV_MAX_ROWS = 10_000;
 
     private final EvaluationRepositoryPort repo;
     private final EvaluationListReportPort pdfPort;
+    private final EvaluationListCsvPort csvPort;
 
     public ExportEvaluationsService(EvaluationRepositoryPort repo,
-                                    EvaluationListReportPort pdfPort) {
+                                    EvaluationListReportPort pdfPort,
+                                    EvaluationListCsvPort csvPort) {
         this.repo = repo;
         this.pdfPort = pdfPort;
+        this.csvPort = csvPort;
     }
 
     @Override
@@ -46,7 +49,16 @@ public class ExportEvaluationsService implements ExportEvaluationsUseCase {
             byte[] pdf = pdfPort.generar(items, criteria);
             return new ExportArtifact("evaluaciones.pdf", "application/pdf", pdf);
         }
-        // El export CSV se delega al controller via StreamingResponseBody.
-        throw new UnsupportedOperationException("CSV streaming delegado al controller");
+        throw new UnsupportedOperationException("Formato no soportado: " + format);
+    }
+
+    @Override
+    public byte[] exportCsv(EvaluationSearchCriteria criteria) {
+        List<EvaluationSearchItem> items = repo
+                .search(criteria, new PageRequest(0, CSV_MAX_ROWS))
+                .content();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        csvPort.escribir(baos, items.stream());
+        return baos.toByteArray();
     }
 }

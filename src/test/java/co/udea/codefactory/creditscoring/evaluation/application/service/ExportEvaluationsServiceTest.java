@@ -20,6 +20,7 @@ import co.udea.codefactory.creditscoring.evaluation.domain.model.search.Evaluati
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchItem;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.ExportFormat;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.ExportEvaluationsUseCase.ExportArtifact;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationListCsvPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationListReportPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationRepositoryPort;
 import co.udea.codefactory.creditscoring.shared.PagedResult;
@@ -31,6 +32,7 @@ class ExportEvaluationsServiceTest {
 
     private EvaluationRepositoryPort repo;
     private EvaluationListReportPort pdfPort;
+    private EvaluationListCsvPort csvPort;
     private ExportEvaluationsService service;
 
     private static final OffsetDateTime DESDE = OffsetDateTime.parse("2025-01-01T00:00:00Z");
@@ -40,7 +42,8 @@ class ExportEvaluationsServiceTest {
     void setUp() {
         repo = mock(EvaluationRepositoryPort.class);
         pdfPort = mock(EvaluationListReportPort.class);
-        service = new ExportEvaluationsService(repo, pdfPort);
+        csvPort = mock(EvaluationListCsvPort.class);
+        service = new ExportEvaluationsService(repo, pdfPort, csvPort);
     }
 
     @Test
@@ -73,11 +76,15 @@ class ExportEvaluationsServiceTest {
     }
 
     @Test
-    void csv_lanzaUnsupportedOperationException() {
+    void csv_invocaRepoYCsvPort() {
         EvaluationSearchCriteria criteria = new EvaluationSearchCriteria(
                 DESDE, HASTA, null, null, null, null, null);
+        PagedResult<EvaluationSearchItem> page = new PagedResult<>(List.of(), 0, 0, 0, 10000);
+        when(repo.search(any(), any())).thenReturn(page);
 
-        assertThatThrownBy(() -> service.export(criteria, ExportFormat.CSV))
-                .isInstanceOf(UnsupportedOperationException.class);
+        byte[] result = service.exportCsv(criteria);
+
+        assertThat(result).isNotNull();
+        verify(csvPort).escribir(any(), any());
     }
 }

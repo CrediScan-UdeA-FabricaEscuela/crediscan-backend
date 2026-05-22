@@ -18,7 +18,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import co.udea.codefactory.creditscoring.creditdecision.domain.port.out.CreditDecisionRepositoryPort;
+import co.udea.codefactory.creditscoring.creditdecision.domain.port.in.GetCreditDecisionUseCase;
 import co.udea.codefactory.creditscoring.evaluation.application.dto.ExecuteEvaluationCommand;
 import co.udea.codefactory.creditscoring.evaluation.domain.exception.EvaluationValidationException;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.ClassificationItem;
@@ -51,8 +50,6 @@ import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluation
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluationStatsUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.GetEvaluationUseCase;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.SearchEvaluationsUseCase;
-import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationListCsvPort;
-import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationRepositoryPort;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.ClassificationItemResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.ClassificationSummaryResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationComparisonResponse;
@@ -61,8 +58,6 @@ import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.re
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationSearchResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.EvaluationStatsResponse;
 import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.in.rest.dto.LevelCountDto;
-import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence.EvaluationPersistenceMapper;
-import co.udea.codefactory.creditscoring.evaluation.infrastructure.adapter.out.persistence.JpaEvaluationRepository;
 import co.udea.codefactory.creditscoring.shared.PageRequest;
 import co.udea.codefactory.creditscoring.shared.PagedResult;
 
@@ -80,10 +75,7 @@ public class EvaluationController {
     private final ExecuteEvaluationUseCase executeEvaluationUseCase;
     private final GetEvaluationUseCase getEvaluationUseCase;
     private final GetEvaluationReportUseCase getEvaluationReportUseCase;
-    private final CreditDecisionRepositoryPort creditDecisionRepository;
-    private final EvaluationRepositoryPort evaluationDomainRepository;
-    private final EvaluationPersistenceMapper evaluationMapper;
-    private final JpaEvaluationRepository jpaEvaluationRepository;
+    private final GetCreditDecisionUseCase getCreditDecisionUseCase;
     private final GetEvaluationClassificationUseCase getEvaluationClassificationUseCase;
     private final GetClassificationByLevelUseCase getClassificationByLevelUseCase;
     private final GetEvaluationDetailUseCase getEvaluationDetailUseCase;
@@ -91,31 +83,23 @@ public class EvaluationController {
     private final SearchEvaluationsUseCase searchEvaluationsUseCase;
     private final GetEvaluationStatsUseCase getEvaluationStatsUseCase;
     private final ExportEvaluationsUseCase exportEvaluationsUseCase;
-    private final EvaluationListCsvPort csvPort;
 
     public EvaluationController(
             ExecuteEvaluationUseCase executeEvaluationUseCase,
             GetEvaluationUseCase getEvaluationUseCase,
             GetEvaluationReportUseCase getEvaluationReportUseCase,
-            CreditDecisionRepositoryPort creditDecisionRepository,
-            EvaluationRepositoryPort evaluationDomainRepository,
-            EvaluationPersistenceMapper evaluationMapper,
-            JpaEvaluationRepository jpaEvaluationRepository,
+            GetCreditDecisionUseCase getCreditDecisionUseCase,
             GetEvaluationClassificationUseCase getEvaluationClassificationUseCase,
             GetClassificationByLevelUseCase getClassificationByLevelUseCase,
             GetEvaluationDetailUseCase getEvaluationDetailUseCase,
             CompareEvaluationsUseCase compareEvaluationsUseCase,
             SearchEvaluationsUseCase searchEvaluationsUseCase,
             GetEvaluationStatsUseCase getEvaluationStatsUseCase,
-            ExportEvaluationsUseCase exportEvaluationsUseCase,
-            EvaluationListCsvPort csvPort) {
+            ExportEvaluationsUseCase exportEvaluationsUseCase) {
         this.executeEvaluationUseCase = executeEvaluationUseCase;
         this.getEvaluationUseCase = getEvaluationUseCase;
         this.getEvaluationReportUseCase = getEvaluationReportUseCase;
-        this.creditDecisionRepository = creditDecisionRepository;
-        this.evaluationDomainRepository = evaluationDomainRepository;
-        this.evaluationMapper = evaluationMapper;
-        this.jpaEvaluationRepository = jpaEvaluationRepository;
+        this.getCreditDecisionUseCase = getCreditDecisionUseCase;
         this.getEvaluationClassificationUseCase = getEvaluationClassificationUseCase;
         this.getClassificationByLevelUseCase = getClassificationByLevelUseCase;
         this.getEvaluationDetailUseCase = getEvaluationDetailUseCase;
@@ -123,7 +107,6 @@ public class EvaluationController {
         this.searchEvaluationsUseCase = searchEvaluationsUseCase;
         this.getEvaluationStatsUseCase = getEvaluationStatsUseCase;
         this.exportEvaluationsUseCase = exportEvaluationsUseCase;
-        this.csvPort = csvPort;
     }
 
     // =========================================================================
@@ -137,7 +120,6 @@ public class EvaluationController {
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','RISK_MANAGER','CREDIT_SUPERVISOR')")
-    @Transactional(readOnly = true)
     public ResponseEntity<EvaluationSearchResponse> buscarEvaluaciones(
             @RequestParam(name = "fecha_desde")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaDesde,
@@ -258,13 +240,7 @@ public class EvaluationController {
                 parseDecisiones(decisionRaw), analista);
 
         if (formato == ExportFormat.CSV) {
-            // CSV: se usa el repositorio directamente (sin la validación de tamaño del service)
-            // porque el CSV no tiene límite estricto de filas.
-            PagedResult<EvaluationSearchItem> page = evaluationDomainRepository
-                    .search(criteria, new PageRequest(0, 10_000));
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            csvPort.escribir(baos, page.content().stream());
-            byte[] csvBytes = baos.toByteArray();
+            byte[] csvBytes = exportEvaluationsUseCase.exportCsv(criteria);
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType("text/csv"))
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=evaluaciones.csv")
@@ -430,6 +406,6 @@ public class EvaluationController {
                 e.id(), e.applicantId(), e.modelId(), e.financialDataId(),
                 e.totalScore(), e.riskLevel().name(), e.knockedOut(), e.knockoutReasons(),
                 e.evaluatedAt(), e.evaluatedBy(), details, knockouts,
-                creditDecisionRepository.existsByEvaluationId(e.id()));
+                getCreditDecisionUseCase.existsByEvaluationId(e.id()));
     }
 }

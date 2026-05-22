@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +39,7 @@ public class ScoringSimulationController {
 
     /** CA1 — Simula el scoring sin persistir el resultado. */
     @PostMapping("/simular")
+    @PreAuthorize("hasAnyRole('ADMIN','ANALYST','RISK_MANAGER')")
     public ResponseEntity<CalculateScoreResponse> simular(
             @Valid @RequestBody SimulateScoreRequest request) {
         ScoringResult resultado = useCase.simular(
@@ -47,6 +49,7 @@ public class ScoringSimulationController {
 
     /** CA6 — Guarda un escenario de simulación para reutilización. */
     @PostMapping("/simulaciones")
+    @PreAuthorize("hasAnyRole('ADMIN','ANALYST','RISK_MANAGER')")
     public ResponseEntity<ScenarioResponse> guardarEscenario(
             @Valid @RequestBody SaveScenarioRequest request,
             Principal principal) {
@@ -59,6 +62,7 @@ public class ScoringSimulationController {
 
     /** CA6 — Lista los escenarios guardados para un modelo. */
     @GetMapping("/simulaciones")
+    @PreAuthorize("hasAnyRole('ADMIN','ANALYST','RISK_MANAGER')")
     public ResponseEntity<List<ScenarioResponse>> listarEscenarios(
             @RequestParam UUID modeloId) {
         List<ScenarioResponse> lista = useCase.listarEscenarios(modeloId)
@@ -68,6 +72,7 @@ public class ScoringSimulationController {
 
     /** CA7 — Re-ejecuta un escenario guardado. */
     @PostMapping("/simulaciones/{id}/ejecutar")
+    @PreAuthorize("hasAnyRole('ADMIN','ANALYST','RISK_MANAGER')")
     public ResponseEntity<CalculateScoreResponse> ejecutarEscenario(
             @PathVariable UUID id) {
         ScoringResult resultado = useCase.ejecutarEscenario(id);

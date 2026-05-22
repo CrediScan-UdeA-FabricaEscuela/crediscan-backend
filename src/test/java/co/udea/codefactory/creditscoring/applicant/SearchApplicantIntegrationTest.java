@@ -97,7 +97,8 @@ class SearchApplicantIntegrationTest {
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
-        assertThat(body).contains("1017234567");
+        // List response masks all but last 4 digits
+        assertThat(body).contains("***4567");
     }
 
     // AC-02 — Búsqueda exitosa por nombre parcial

@@ -52,4 +52,9 @@ public interface ExportEvaluationsUseCase {
      *         si el formato es PDF y el número de filas supera 1000
      */
     ExportArtifact export(EvaluationSearchCriteria criteria, ExportFormat format);
+
+    /**
+     * Exports evaluations as CSV. No row limit.
+     */
+    byte[] exportCsv(EvaluationSearchCriteria criteria);
 }

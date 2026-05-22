@@ -66,7 +66,7 @@ public class ApplicantRestMapper {
         return new ApplicantSearchResponse(
                 summary.id(),
                 summary.name(),
-                summary.identification(),
+                maskId(summary.identification()),
                 summary.birthDate(),
                 summary.employmentType(),
                 summary.monthlyIncome(),
@@ -74,6 +74,11 @@ public class ApplicantRestMapper {
                 summary.phone(),
                 summary.address(),
                 summary.email());
+    }
+
+    private static String maskId(String id) {
+        if (id == null || id.length() <= 4) return "***";
+        return "***" + id.substring(id.length() - 4);
     }
 
     private ApplicantResponse toApplicantResponse(Applicant applicant) {

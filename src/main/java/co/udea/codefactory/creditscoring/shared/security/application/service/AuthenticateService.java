@@ -6,6 +6,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import co.udea.codefactory.creditscoring.shared.security.domain.exception.InvalidCredentialsException;
 import co.udea.codefactory.creditscoring.shared.security.domain.model.AppUser;
@@ -37,6 +38,7 @@ public class AuthenticateService implements AuthenticateUseCase {
     }
 
     @Override
+    @Transactional
     public AuthResult authenticate(String username, String password, String actorIp) {
         try {
             authenticationManager.authenticate(

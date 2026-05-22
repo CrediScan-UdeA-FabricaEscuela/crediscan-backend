@@ -194,7 +194,7 @@ public class ApplicantController {
     })
     public ResponseEntity<UpdateApplicantResponse> updateApplicant(
             @PathVariable("id") UUID id,
-            @RequestBody UpdateApplicantRequest request,
+            @Valid @RequestBody UpdateApplicantRequest request,
             Authentication authentication) {
         UpdateApplicantResult result = updateApplicantUseCase.update(
                 applicantRestMapper.toUpdateCommand(id, request, authentication.getName()));
