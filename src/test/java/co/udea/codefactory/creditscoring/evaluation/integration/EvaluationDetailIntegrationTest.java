@@ -43,8 +43,8 @@ class EvaluationDetailIntegrationTest {
     void limpiar() {
         jdbc.update("DELETE FROM evaluation_knockout");
         jdbc.update("DELETE FROM evaluation_detail");
-        jdbc.update("DELETE FROM evaluation");
         jdbc.update("DELETE FROM credit_decision");
+        jdbc.update("DELETE FROM evaluation");
         jdbc.update("DELETE FROM knockout_rule");
         jdbc.update("DELETE FROM model_variable");
         jdbc.update("DELETE FROM scoring_model");

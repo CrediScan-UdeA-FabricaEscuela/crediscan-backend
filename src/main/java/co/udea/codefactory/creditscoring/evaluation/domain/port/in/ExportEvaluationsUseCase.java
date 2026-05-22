@@ -24,10 +24,10 @@ public interface ExportEvaluationsUseCase {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof ExportArtifact(var otherFilename, var otherContentType, var otherPayload))) return false;
-            return Objects.equals(filename, otherFilename)
-                && Objects.equals(contentType, otherContentType)
-                && Arrays.equals(payload, otherPayload);
+            if (!(o instanceof ExportArtifact other)) return false;
+            return Objects.equals(filename, other.filename)
+                && Objects.equals(contentType, other.contentType)
+                && Arrays.equals(payload, other.payload);
         }
 
         @Override
