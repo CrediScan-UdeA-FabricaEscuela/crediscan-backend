@@ -60,12 +60,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         List<Map<String, Object>> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> Map.<String, Object>of(
                         "field", fe.getField(),
-                        "message", fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "Invalid value",
+                        KEY_MESSAGE, fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "Invalid value",
                         "rejectedValue", fe.getRejectedValue() != null ? fe.getRejectedValue() : "null"))
                 .toList();
 
         if (!fieldErrors.isEmpty()) {
-            Object message = fieldErrors.getFirst().get("message");
+            Object message = fieldErrors.getFirst().get(KEY_MESSAGE);
             if (message instanceof String detailMessage) {
                 problem.setDetail(detailMessage);
             }
