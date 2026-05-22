@@ -7,20 +7,20 @@
 ## Tabla de Contenidos
 
 1. [Visión General](#1-visión-general)
-2. [Arquitectura Hexagonal](#2-arquitectura-hexagonal)
-3. [Estructura de Packages y Mapa de Módulos](#3-estructura-de-packages-y-mapa-de-módulos)
-4. [Bounded Contexts](#4-bounded-contexts)
+2. [Arquitectura Hexagonal + Screaming Architecture](#2-arquitectura-hexagonal--screaming-architecture)
+3. [Estructura de Packages y Mapa de Bounded Contexts](#3-estructura-de-packages-y-mapa-de-bounded-contexts)
+4. [Bounded Contexts — detalle](#4-bounded-contexts--detalle)
 5. [Reglas de Dependencia](#5-reglas-de-dependencia)
 6. [Patrones Clave](#6-patrones-clave)
 7. [Manejo de Errores](#7-manejo-de-errores)
 8. [Base de Datos](#8-base-de-datos)
 9. [Seguridad y Autenticación](#9-seguridad-y-autenticación)
-10. [Endpoints y Roles](#10-endpoints-y-roles)
+10. [Subsistema de Reportes (HU-015 / HU-016 / HU-017)](#10-subsistema-de-reportes-hu-015--hu-016--hu-017)
 11. [Tests](#11-tests)
 12. [CI/CD](#12-cicd)
 13. [Configuración](#13-configuración)
-14. [Cómo implementar un nuevo módulo](#14-cómo-implementar-un-nuevo-módulo)
-15. [Observabilidad](#15-observabilidad)
+14. [Observabilidad](#14-observabilidad)
+15. [Cómo implementar un nuevo módulo](#15-cómo-implementar-un-nuevo-módulo)
 16. [ADRs — Decisiones de Arquitectura](#16-adrs--decisiones-de-arquitectura)
 
 ---
@@ -29,7 +29,7 @@
 
 **Credit Scoring Engine** es una API REST construida con **Java 21 + Spring Boot 3.4.4**.
 
-Evalúa solicitudes de crédito de personas naturales. Contempla el registro de solicitantes, captura de datos financieros, scoring automatizado, evaluación crediticia, decisión final y generación de reportes.
+Evalúa solicitudes de crédito de personas naturales. Contempla el registro de solicitantes con encriptación de datos sensibles, captura y versionado de datos financieros, scoring automatizado mediante modelos configurables con reglas de knockout, evaluación crediticia completa, registro de decisiones finales y generación de reportes analíticos avanzados.
 
 **Stack principal:**
 
@@ -39,30 +39,33 @@ Evalúa solicitudes de crédito de personas naturales. Contempla el registro de 
 | Framework | Spring Boot 3.4.4 |
 | Persistencia | Spring Data JPA + Hibernate 6 |
 | Base de datos | PostgreSQL 16 |
-| Migraciones | Flyway |
-| Autenticación | JWT (jjwt 0.12.6) |
+| Migraciones | Flyway (V1–V32) |
+| Autenticación | JWT (jjwt 0.12.6) + BCrypt |
 | Mapeo | MapStruct 1.6.3 |
-| Logs | Logstash Logback Encoder (JSON) |
+| PDF | OpenPDF 2.0.3 |
+| CSV | Apache Commons CSV 1.10.0 |
+| Cache | Caffeine 3.2.0 |
+| Logs | Logstash Logback Encoder 8.0 (JSON estructurado) |
 | Métricas | Micrometer + Prometheus |
-| API Docs | SpringDoc OpenAPI (Swagger UI) |
-| Tests | JUnit 5, Testcontainers, Cucumber, REST Assured, ArchUnit |
+| API Docs | SpringDoc OpenAPI 2.8.4 (Swagger UI) |
+| Tests | JUnit 5, Testcontainers 1.20.4, Cucumber 7.20.1, REST Assured 5.5.0, ArchUnit 1.3.0 |
 
 ---
 
-## 2. Arquitectura Hexagonal
+## 2. Arquitectura Hexagonal + Screaming Architecture
 
-El proyecto usa **Arquitectura Hexagonal** (también llamada Ports & Adapters o Clean Architecture).
+### 2.1 Hexagonal (Ports & Adapters)
 
-La idea central es que el **dominio de negocio no sabe nada de infraestructura** (ni de JPA, ni de HTTP, ni de cómo se encripta algo). Todo lo que el dominio necesita del exterior lo pide a través de **puertos** (interfaces), y la infraestructura provee **adaptadores** que implementan esos puertos.
+El proyecto usa **Arquitectura Hexagonal**. La idea central es que el **dominio de negocio no sabe nada de infraestructura** — ni de JPA, ni de HTTP, ni de criptografía, ni de PDF. Todo lo que el dominio necesita del exterior lo pide a través de **puertos** (interfaces), y la infraestructura provee **adaptadores** que implementan esos puertos.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      INFRAESTRUCTURA                        │
 │                                                             │
-│  ┌─────────────┐   ┌──────────────────────────────────┐     │
-│  │  REST API   │   │          ADAPTADORES OUT         │     │
-│  │ (Adapter IN)│   │  JPA / Crypto / Metrics / JWT    │     │
-│  └──────┬──────┘   └──────────────┬───────────────────┘     │
+│  ┌─────────────┐   ┌──────────────────────────────────┐    │
+│  │  REST API   │   │          ADAPTADORES OUT         │    │
+│  │ (Adapter IN)│   │  JPA / Crypto / PDF / CSV / JWT  │    │
+│  └──────┬──────┘   └──────────────┬───────────────────┘    │
 │         │                         │                         │
 └─────────┼─────────────────────────┼─────────────────────────┘
           │                         │
@@ -70,10 +73,10 @@ La idea central es que el **dominio de negocio no sabe nada de infraestructura**
 ┌─────────────────────────────────────────────────────────────┐
 │                       APLICACIÓN                            │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │              UseCase / Service                      │    │
-│  │   Orquesta el flujo. No sabe cómo se persiste.      │    │
-│  └─────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              UseCase / Service                      │   │
+│  │   Orquesta el flujo. No sabe cómo se persiste.      │   │
+│  └─────────────────────────────────────────────────────┘   │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
           │                         │
@@ -87,19 +90,63 @@ La idea central es que el **dominio de negocio no sabe nada de infraestructura**
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Ejemplo concreto: Registro de Solicitante
+### 2.2 Screaming Architecture
+
+El paquete raíz `co.udea.codefactory.creditscoring` está organizado por **Bounded Context**, no por capa técnica. La estructura "grita" de qué trata el sistema:
+
+```
+creditscoring/
+├── applicant/          ← el sistema registra y busca solicitantes
+├── creditdecision/     ← el sistema toma decisiones crediticias
+├── evaluation/         ← el sistema evalúa riesgo crediticio
+├── financialdata/      ← el sistema captura datos financieros
+├── reporting/          ← el sistema genera reportes analíticos
+├── scoring/            ← el sistema gestiona variables de scoring
+├── scoringengine/      ← el sistema calcula scores
+├── scoringmodel/       ← el sistema gestiona modelos de scoring
+└── shared/             ← seguridad, auditoría, config, infraestructura compartida
+```
+
+No existe un directorio `repository/` global, ni `service/` global, ni `controller/` global. Cada bounded context tiene sus propias capas.
+
+### 2.3 Capas dentro de cada bounded context
+
+```
+<bounded-context>/
+├── domain/
+│   ├── model/          ← Records y entidades de dominio (Java puro, sin frameworks)
+│   ├── port/
+│   │   ├── in/         ← Use cases (interfaces que la infraestructura IN implementa)
+│   │   └── out/        ← Repository ports, notification ports, etc.
+│   └── exception/      ← Excepciones de dominio (extienden DomainException)
+├── application/
+│   ├── dto/            ← Commands y resultados (Java puro)
+│   └── service/        ← Implementaciones de use cases (@Transactional va acá)
+└── infrastructure/
+    └── adapter/
+        ├── in/
+        │   └── rest/   ← Controllers + DTOs de request/response
+        └── out/
+            ├── persistence/   ← JPA entities, Spring Data repos, adapters
+            ├── pdf/           ← Adaptadores de generación PDF
+            ├── csv/           ← Adaptadores de exportación CSV
+            ├── crypto/        ← Adaptadores de encriptación
+            └── metrics/       ← Adaptadores de métricas
+```
+
+### 2.4 Ejemplo concreto: Registro de Solicitante
 
 ```
 HTTP POST /api/v1/solicitantes
         │
         ▼
-ApplicantController          ← Adapter IN (capa infrastructure)
+ApplicantController          ← Adapter IN (infrastructure)
         │  convierte Request → RegisterApplicantCommand
         ▼
 RegisterApplicantUseCase     ← Puerto IN (interface en domain)
         │  implementado por
         ▼
-RegisterApplicantService     ← Servicio de aplicación
+RegisterApplicantService     ← Servicio de aplicación (@Transactional)
         │  usa 3 puertos OUT:
         ├─ ApplicantRepositoryPort ──→ ApplicantRepositoryAdapter → JPA → PostgreSQL
         ├─ IdentificationCryptoPort ─→ IdentificationCryptoAdapter → AES-GCM / HMAC
@@ -108,32 +155,32 @@ RegisterApplicantService     ← Servicio de aplicación
 
 ---
 
-## 3. Estructura de Packages y Mapa de Módulos
+## 3. Estructura de Packages y Mapa de Bounded Contexts
 
 ### Mapa de módulos
 
-| Módulo | Estado | Responsabilidad |
-|--------|--------|-----------------|
-| `applicant` | Implementado | Registro, búsqueda y edición de solicitantes de crédito |
-| `financialdata` | Parcialmente implementado | Captura y versionado de datos financieros del solicitante |
-| `scoring` | Implementado | Variables de scoring: definición, tipos, rangos y categorías |
-| `scoringmodel` | Implementado | Modelos de scoring: creación, activación, reglas KO |
-| `scoringengine` | Implementado | Motor de cálculo de scoring y modo de simulación |
-| `evaluation` | Implementado | Ejecución de evaluaciones crediticias y generación de PDF |
-| `creditdecision` | Implementado | Registro de decisiones finales sobre evaluaciones |
-| `shared/security` | Implementado | Autenticación JWT, RBAC, gestión de usuarios |
-| `shared/audit` | Implementado | Trazabilidad de eventos críticos del sistema |
-| `reporting` | Stub | Reportes de distribución de riesgo y estadísticas |
+| Módulo | Responsabilidad |
+|--------|-----------------|
+| `applicant` | Registro, búsqueda con filtros, edición y exportación CSV de solicitantes |
+| `financialdata` | Captura y versionado de datos financieros del solicitante, comparación entre versiones |
+| `scoring` | Variables de scoring: definición, tipos (NUMERIC/CATEGORICAL), rangos, categorías, pesos |
+| `scoringmodel` | Modelos de scoring: ciclo de vida (DRAFT→ACTIVE→INACTIVE), comparación, reglas de knockout |
+| `scoringengine` | Motor de cálculo de scoring: puntuación ponderada + KO, simulación y escenarios guardados |
+| `evaluation` | Ejecución de evaluaciones, búsqueda con filtros, exportación PDF/CSV, estadísticas |
+| `creditdecision` | Decisiones crediticias finales (inmutables); escalado con deadline automático |
+| `reporting` | Reportes analíticos: distribución de riesgo, efectividad del modelo, actividad de analistas |
+| `shared/security` | Autenticación JWT, RBAC, gestión de usuarios, blacklist de tokens |
+| `shared/audit` | Registro inmutable de eventos críticos del sistema con exportación CSV |
 
-### Estructura de packages
+### Estructura de packages completa
 
 ```
 co.udea.codefactory.creditscoring/
 │
-├── applicant/                          ← Bounded context: Solicitantes
+├── applicant/
 │   ├── domain/
 │   │   ├── model/
-│   │   │   ├── Applicant.java          ← Record inmutable; incluye phone
+│   │   │   ├── Applicant.java          ← Record inmutable
 │   │   │   └── EmploymentType.java     ← Enum con factory method fromApiValue()
 │   │   ├── port/
 │   │   │   ├── in/
@@ -146,200 +193,113 @@ co.udea.codefactory.creditscoring/
 │   │   │       ├── ApplicantEditAuditPort.java
 │   │   │       └── ApplicantRegistrationMetricsPort.java
 │   │   └── exception/
-│   │       ├── ApplicantValidationException.java
-│   │       ├── DuplicateApplicantException.java
-│   │       └── ImmutableFieldException.java
 │   ├── application/
 │   │   ├── dto/
-│   │   │   ├── RegisterApplicantCommand.java
-│   │   │   ├── ApplicantSummary.java
-│   │   │   ├── UpdateApplicantCommand.java
-│   │   │   └── UpdateApplicantResult.java
 │   │   └── service/
 │   │       ├── RegisterApplicantService.java
 │   │       ├── SearchApplicantService.java
 │   │       └── UpdateApplicantService.java
-│   └── infrastructure/
-│       └── adapter/
-│           ├── in/rest/
-│           │   ├── ApplicantController.java
-│           │   ├── ApplicantRestMapper.java
-│           │   └── dto/
-│           │       ├── RegisterApplicantRequest.java
-│           │       ├── RegisterApplicantResponse.java
-│           │       ├── ApplicantResponse.java
-│           │       ├── ApplicantSearchResponse.java
-│           │       ├── UpdateApplicantRequest.java
-│           │       └── UpdateApplicantResponse.java
-│           └── out/
-│               ├── persistence/
-│               │   ├── ApplicantJpaEntity.java
-│               │   ├── JpaApplicantRepository.java
-│               │   ├── ApplicantRepositoryAdapter.java
-│               │   ├── ApplicantEditAuditJpaEntity.java
-│               │   ├── JpaApplicantEditAuditRepository.java
-│               │   └── ApplicantEditAuditAdapter.java
-│               ├── crypto/
-│               │   ├── CryptoProperties.java
-│               │   └── IdentificationCryptoAdapter.java
-│               └── metrics/
-│                   └── ApplicantRegistrationMetricsAdapter.java
+│   └── infrastructure/adapter/
+│       ├── in/rest/
+│       └── out/
+│           ├── persistence/
+│           ├── crypto/
+│           └── metrics/
 │
-├── scoring/                            ← Bounded context: Variables de scoring
-│   ├── domain/
-│   │   ├── model/
-│   │   │   ├── ScoringVariable.java    ← Aggregate root
-│   │   │   ├── VariableType.java       ← NUMERIC | CATEGORICAL
-│   │   │   ├── VariableRange.java
-│   │   │   └── VariableCategory.java
-│   │   ├── port/
-│   │   │   ├── in/                     ← Create / Get / Update use cases
-│   │   │   └── out/
-│   │   │       └── ScoringVariableRepositoryPort.java
-│   │   └── exception/
-│   │       └── ScoringVariableValidationException.java
-│   ├── application/
-│   │   ├── dto/                        ← Request/response DTOs (con @Valid)
-│   │   └── service/
-│   │       ├── ScoringVariableCommandService.java
-│   │       └── ScoringVariableQueryService.java
-│   └── infrastructure/
-│       └── adapter/
-│           ├── in/rest/
-│           │   ├── ScoringVariableController.java
-│           │   └── ScoringVariableRestMapper.java
-│           └── out/persistence/        ← JpaEntity + Repository + Adapter (variable + range + category)
+├── financialdata/
+│   ├── domain/model/ → FinancialData.java (record con versionado)
+│   ├── application/service/
+│   └── infrastructure/adapter/in/rest/ + out/persistence/
 │
-├── scoringmodel/                       ← Bounded context: Modelos y reglas KO
-│   ├── domain/
-│   │   ├── model/
-│   │   │   ├── ScoringModel.java       ← Aggregate root (DRAFT → ACTIVE → INACTIVE)
-│   │   │   ├── ModelStatus.java        ← DRAFT | ACTIVE | INACTIVE
-│   │   │   ├── ModelVariable.java
-│   │   │   ├── KnockoutRule.java
-│   │   │   └── KnockoutOperator.java   ← GT | LT | GTE | LTE | EQ | NEQ
-│   │   ├── port/
-│   │   │   ├── in/                     ← Create / Activate / Get / Compare / ManageKO use cases
-│   │   │   └── out/
-│   │   │       ├── ScoringModelRepositoryPort.java
-│   │   │       └── KnockoutRuleRepositoryPort.java
-│   │   └── exception/
-│   │       └── ScoringModelValidationException.java
-│   ├── application/
-│   │   ├── dto/
-│   │   └── service/
-│   │       ├── ScoringModelCommandService.java
-│   │       ├── ScoringModelQueryService.java
-│   │       └── KnockoutRuleService.java
-│   └── infrastructure/
-│       └── adapter/
-│           ├── in/rest/
-│           │   ├── ScoringModelController.java
-│           │   └── KnockoutRuleController.java
-│           └── out/persistence/
+├── scoring/
+│   ├── domain/model/
+│   │   ├── ScoringVariable.java        ← Aggregate root
+│   │   ├── VariableType.java           ← NUMERIC | CATEGORICAL
+│   │   ├── VariableRange.java
+│   │   └── VariableCategory.java
+│   ├── application/service/
+│   │   ├── ScoringVariableCommandService.java
+│   │   └── ScoringVariableQueryService.java
+│   └── infrastructure/adapter/in/rest/ + out/persistence/
 │
-├── scoringengine/                      ← Bounded context: Motor de cálculo y simulación
-│   ├── domain/
-│   │   ├── model/
-│   │   │   ├── ScoringResult.java
-│   │   │   ├── VariableScoreDetail.java
-│   │   │   ├── KnockoutEvaluationDetail.java
-│   │   │   └── SimulationScenario.java
-│   │   └── port/
-│   │       ├── in/                     ← Calculate / Simulate / Scenario use cases
-│   │       └── out/
-│   │           └── SimulationScenarioRepositoryPort.java
-│   ├── application/
-│   │   ├── dto/
-│   │   └── service/
-│   │       ├── ScoringEngineService.java
-│   │       ├── ScoringSimulationService.java
-│   │       ├── ScoringCalculator.java              ← Cálculo ponderado + KO evaluation
-│   │       └── FinancialDataValueExtractor.java
-│   └── infrastructure/
-│       └── adapter/
-│           ├── in/rest/
-│           │   ├── ScoringEngineController.java
-│           │   └── ScoringSimulationController.java
-│           └── out/persistence/        ← SimulationScenario JPA
+├── scoringmodel/
+│   ├── domain/model/
+│   │   ├── ScoringModel.java           ← Aggregate root (DRAFT→ACTIVE→INACTIVE)
+│   │   ├── ModelVariable.java
+│   │   ├── KnockoutRule.java
+│   │   └── KnockoutOperator.java       ← GT | LT | GTE | LTE | EQ | NEQ
+│   ├── application/service/
+│   │   ├── ScoringModelCommandService.java
+│   │   ├── ScoringModelQueryService.java
+│   │   └── KnockoutRuleService.java
+│   └── infrastructure/adapter/
+│       └── in/rest/ → ScoringModelController.java + KnockoutRuleController.java
 │
-├── evaluation/                         ← Bounded context: Evaluaciones crediticias
-│   ├── domain/
-│   │   ├── model/
-│   │   │   ├── Evaluation.java         ← Aggregate root
-│   │   │   ├── EvaluationDetail.java   ← Detalle por variable
-│   │   │   ├── EvaluationKnockout.java ← Reglas KO evaluadas
-│   │   │   └── RiskLevel.java          ← VERY_LOW | LOW | MEDIUM | HIGH | VERY_HIGH | REJECTED
-│   │   ├── port/
-│   │   │   ├── in/                     ← Execute / Get / GetReport use cases
-│   │   │   └── out/
-│   │   │       ├── EvaluationRepositoryPort.java
-│   │   │       └── EvaluationReportPort.java
-│   │   └── exception/
-│   │       ├── ApplicantNoFinancialDataException.java
-│   │       └── EvaluationCooldownException.java
-│   ├── application/
-│   │   ├── dto/
-│   │   └── service/
-│   │       ├── ExecuteEvaluationService.java
-│   │       ├── GetEvaluationService.java
-│   │       └── GetEvaluationReportService.java
-│   └── infrastructure/
-│       └── adapter/
-│           ├── in/rest/
-│           │   └── EvaluationController.java
-│           └── out/
-│               ├── persistence/
-│               └── pdf/
-│                   └── PdfEvaluationReportAdapter.java
+├── scoringengine/
+│   ├── domain/model/
+│   │   ├── ScoringResult.java
+│   │   ├── VariableScoreDetail.java
+│   │   ├── KnockoutEvaluationDetail.java
+│   │   └── SimulationScenario.java
+│   ├── application/service/
+│   │   ├── ScoringEngineService.java
+│   │   ├── ScoringSimulationService.java
+│   │   ├── ScoringCalculator.java      ← Cálculo ponderado + evaluación KO
+│   │   └── FinancialDataValueExtractor.java
+│   └── infrastructure/adapter/
+│       └── in/rest/ → ScoringEngineController.java + ScoringSimulationController.java
 │
-├── creditdecision/                     ← Bounded context: Decisiones crediticias
-│   ├── domain/
-│   │   ├── model/
-│   │   │   ├── CreditDecision.java     ← Aggregate root (inmutable una vez registrada)
-│   │   │   └── DecisionStatus.java     ← APPROVED | REJECTED | MANUAL_REVIEW | ESCALATED
-│   │   ├── port/
-│   │   │   ├── in/
-│   │   │   │   └── RegisterCreditDecisionUseCase.java
-│   │   │   └── out/
-│   │   │       ├── CreditDecisionRepositoryPort.java
-│   │   │       └── EscalationNotificationPort.java
-│   │   └── exception/
-│   │       ├── CreditDecisionAlreadyExistsException.java
-│   │       ├── CreditDecisionKnockoutException.java
-│   │       └── CreditDecisionValidationException.java
-│   ├── application/
-│   │   ├── dto/
-│   │   │   └── RegisterCreditDecisionCommand.java
-│   │   └── service/
-│   │       └── RegisterCreditDecisionService.java
-│   └── infrastructure/
-│       └── adapter/
-│           ├── in/rest/
-│           │   ├── CreditDecisionController.java
-│           │   └── dto/
-│           │       ├── RegisterCreditDecisionRequest.java
-│           │       └── CreditDecisionResponse.java
-│           └── out/
-│               ├── persistence/
-│               │   ├── CreditDecisionJpaEntity.java
-│               │   ├── JpaCreditDecisionRepository.java
-│               │   ├── CreditDecisionRepositoryAdapter.java
-│               │   └── CreditDecisionPersistenceMapper.java
-│               └── notification/
-│                   └── LoggingEscalationNotificationAdapter.java
+├── evaluation/
+│   ├── domain/model/
+│   │   ├── Evaluation.java             ← Aggregate root
+│   │   ├── EvaluationDetail.java       ← Detalle por variable
+│   │   ├── EvaluationKnockout.java     ← Reglas KO evaluadas
+│   │   ├── RiskLevel.java              ← VERY_LOW | LOW | MEDIUM | HIGH | VERY_HIGH | REJECTED
+│   │   └── search/                     ← Modelos de búsqueda/filtro
+│   ├── application/service/
+│   │   ├── ExecuteEvaluationService.java
+│   │   ├── GetEvaluationService.java
+│   │   ├── GetEvaluationReportService.java
+│   │   └── search/                     ← Servicios de búsqueda y estadísticas
+│   └── infrastructure/adapter/out/
+│       ├── persistence/ + projection/
+│       ├── pdf/
+│       └── csv/
 │
-├── reporting/                          ← STUB
-│   └── infrastructure/adapter/in/rest/
-│       └── ReportController.java
+├── creditdecision/
+│   ├── domain/model/
+│   │   ├── CreditDecision.java         ← Aggregate root (inmutable una vez registrada)
+│   │   └── DecisionStatus.java         ← APPROVED | REJECTED | MANUAL_REVIEW | ESCALATED
+│   ├── application/service/
+│   │   └── RegisterCreditDecisionService.java
+│   └── infrastructure/adapter/out/
+│       ├── persistence/
+│       └── notification/               ← LoggingEscalationNotificationAdapter.java
+│
+├── reporting/
+│   ├── domain/model/
+│   │   ├── (distribución de riesgo)
+│   │   ├── efectividad/                ← Matriz de confusión, tasas de concordancia y override
+│   │   └── analistas/                  ← Métricas por analista, horas hábiles, outliers
+│   ├── domain/port/in/
+│   │   ├── efectividad/
+│   │   └── analistas/
+│   ├── application/service/
+│   │   ├── efectividad/
+│   │   ├── analistas/
+│   │   └── util/                       ← BusinessHoursCalculator, OutlierDetector
+│   └── infrastructure/adapter/out/
+│       ├── persistence/efectividad/ + analistas/   ← Queries JPA nativas/JPQL agregadas
+│       ├── pdf/efectividad/ + analistas/
+│       └── csv/                                    ← CSV streaming para HU-017
 │
 └── shared/
     ├── PagedResult.java                ← Record de paginación sin dependencias Spring
-    ├── PageRequest.java                ← Record de request de paginación sin dependencias Spring
+    ├── PageRequest.java
     ├── audit/
     │   └── AuditableEntity.java        ← @MappedSuperclass para auditoría JPA
     ├── config/
-    │   ├── CorsConfig.java             ← CORS externalizado via CORS_ALLOWED_ORIGINS
+    │   ├── CorsConfig.java
     │   ├── JpaAuditingConfig.java
     │   └── OpenApiConfig.java
     ├── exception/
@@ -349,67 +309,23 @@ co.udea.codefactory.creditscoring/
     ├── logging/
     │   └── MdcFilter.java              ← Inyecta traceId en cada request
     └── security/
-        ├── SecurityConfig.java
-        ├── domain/
-        │   ├── model/
-        │   │   ├── AppUser.java
-        │   │   ├── Role.java           ← ADMIN, ANALYST, RISK_MANAGER, CREDIT_SUPERVISOR
-        │   │   ├── AuthResult.java
-        │   │   └── RolePermission.java
-        │   ├── port/
-        │   │   ├── in/
-        │   │   │   ├── AuthenticateUseCase.java
-        │   │   │   ├── ChangeUserRoleUseCase.java
-        │   │   │   └── GetPermissionMatrixUseCase.java
-        │   │   └── out/
-        │   │       ├── AppUserRepositoryPort.java
-        │   │       ├── TokenBlacklistPort.java
-        │   │       ├── RolePermissionPort.java
-        │   │       └── AuditLogPort.java
-        │   └── exception/
-        │       ├── InvalidCredentialsException.java
-        │       └── LastAdminException.java
-        ├── application/service/
-        │   ├── AuthenticateService.java
-        │   ├── ChangeUserRoleService.java
-        │   └── GetPermissionMatrixService.java
+        ├── domain/model/ → AppUser.java, Role.java, AuthResult.java, RolePermission.java
+        ├── domain/port/in/ → AuthenticateUseCase, ChangeUserRoleUseCase, GetPermissionMatrixUseCase
+        ├── domain/port/out/ → AppUserRepositoryPort, TokenBlacklistPort, RolePermissionPort, AuditLogPort
+        ├── application/service/ → AuthenticateService, ChangeUserRoleService, GetPermissionMatrixService
         └── infrastructure/
-            ├── jwt/
-            │   ├── JwtService.java
-            │   ├── JwtProperties.java
-            │   └── JwtAuthenticationFilter.java
-            ├── persistence/
-            │   ├── JpaAppUserEntity.java
-            │   ├── JpaAppUserRepository.java
-            │   ├── JpaAuditLogEntity.java
-            │   ├── JpaAuditLogRepository.java
-            │   ├── JpaRolePermissionEntity.java
-            │   ├── JpaRolePermissionRepository.java
-            │   ├── JpaTokenBlacklistEntity.java
-            │   ├── JpaTokenBlacklistRepository.java
-            │   ├── JpaUserDetailsService.java
-            │   ├── AppUserRepositoryAdapter.java
-            │   ├── AuditLogAdapter.java
-            │   ├── RolePermissionAdapter.java
-            │   ├── TokenBlacklistAdapter.java
-            │   └── AuditLogId.java
-            └── rest/
-                ├── AuthController.java
-                ├── RoleController.java
-                └── dto/
-                    ├── LoginRequest.java
-                    ├── LoginResponse.java
-                    ├── ChangeRoleRequest.java
-                    └── PermissionMatrixResponse.java
+            ├── jwt/ → JwtService, JwtProperties, JwtAuthenticationFilter
+            ├── persistence/ → JPA entities + adapters (user, audit, token blacklist, role permissions)
+            └── rest/ → AuthController, RoleController
 ```
 
 ---
 
-## 4. Bounded Contexts
+## 4. Bounded Contexts — detalle
 
-### APPLICANT — Implementado
+### APPLICANT
 
-Registro, búsqueda y edición de solicitantes de crédito.
+Registro, búsqueda con filtros avanzados, edición y exportación CSV de solicitantes de crédito.
 
 **Modelos clave:**
 
@@ -418,9 +334,9 @@ public record Applicant(UUID id, String name, String identification,
                         LocalDate birthDate, EmploymentType employmentType,
                         BigDecimal monthlyIncome, Integer workExperienceMonths,
                         String phone)
-// Reglas aplicadas en registerNew() y rehydrate():
+// Reglas de dominio en registerNew() y rehydrate():
 // - nombre obligatorio
-// - identificación obligatoria y única (chequeada via hash en BD)
+// - identificación obligatoria y única (chequeada via HMAC-SHA256 hash en BD)
 // - edad >= 18 años
 // - ingresos mensuales > 0
 // - experiencia laboral >= 0
@@ -428,78 +344,22 @@ public record Applicant(UUID id, String name, String identification,
 ```
 
 **Flujo de registro:**
-1. Controller recibe `RegisterApplicantRequest` → mapea a `RegisterApplicantCommand`
-2. Service crea el modelo `Applicant` (con validaciones de dominio)
-3. Genera HMAC-SHA256 del número de identificación
-4. Chequea si ya existe ese hash en BD (detección de duplicados sin exponer el dato)
-5. Encripta el número de identificación con AES-256-GCM
-6. Persiste el aplicante con el ID encriptado y el hash
-7. Registra métrica de éxito
+1. Controller recibe `RegisterApplicantRequest` → `RegisterApplicantCommand`
+2. Service crea `Applicant` con validaciones de dominio
+3. Genera HMAC-SHA256 del número de identificación → chequea duplicados sin exponer el dato
+4. Encripta la identificación con AES-256-GCM
+5. Persiste con ID encriptado + hash
+6. Registra métrica de éxito via `ApplicantRegistrationMetricsPort`
 
-**Flujo de búsqueda (GET /api/v1/solicitantes):**
-1. Controller recibe `q` (opcional) y parámetros de paginación
-2. `SearchApplicantService`: si `q` es null/blank → `findAll(pageable)`; si tiene valor → hashea `q` con HMAC y construye patrón `%q%` para nombre
-3. Repositorio ejecuta JPQL: `WHERE identification_hash = :hash OR LOWER(name) LIKE LOWER(:nameCriteria)`
-4. `ApplicantRepositoryAdapter.toSummary()` desencripta `identification_encrypted` → `ApplicantSummary` con identificación en texto plano
-5. Retorna `PagedResult<ApplicantSummary>` (tipo de dominio, sin dependencia Spring)
+**Filtros de búsqueda:** nombre (LIKE), identificación exacta (por hash), rango de ingresos, tipo de empleo, rango de experiencia, rango de fechas de registro. Exportación a CSV vía endpoint `/export`.
 
-**Flujo de edición (PATCH /api/v1/solicitantes/{id}):**
-1. Controller recibe `UpdateApplicantRequest` (todos los campos nullable) y `Authentication` para obtener el actor
-2. `UpdateApplicantService` valida que `identificacion` y `fecha_nacimiento` sean null (inmutables → `ImmutableFieldException` si no)
-3. Carga el aplicante existente via `findById` (desencripta identificación para rehydrate)
-4. Por cada campo presente en el command: compara contra el valor actual; si cambió → llama `ApplicantEditAuditPort.saveEditAudit()`
-5. Construye nuevo `Applicant` via `rehydrate()` con valores merged
-6. Persiste via `update()` y retorna `UpdateApplicantResult(applicant, changedFields)`
-
-**Seguridades:**
-- Registro: `@PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")`
-- Búsqueda: `@PreAuthorize("hasRole('ANALYST') or hasRole('RISK_MANAGER') or hasRole('ADMIN') or hasRole('CREDIT_SUPERVISOR')")`
-- Edición: `@PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")`
+**Campos inmutables:** `identificacion` y `fecha_nacimiento` no pueden modificarse una vez registrados (`ImmutableFieldException` si se intenta).
 
 ---
 
-### SHARED/SECURITY — Implementado
+### FINANCIAL DATA
 
-Autenticación JWT y control de acceso basado en roles (RBAC).
-
-Ver sección [9. Seguridad y Autenticación](#9-seguridad-y-autenticación) para el detalle completo.
-
----
-
-### SHARED/AUDIT — Implementado
-
-Captura y consulta de eventos relevantes del sistema, con filtrado, paginación y exportación.
-
-**Modelos clave:**
-
-```java
-public record AuditLogRecord(UUID id,
-                             OffsetDateTime timestamp,
-                             String userId,
-                             String username,
-                             String action,
-                             String resource,
-                             String resourceId,
-                             String ipAddress,
-                             String result,
-                             String beforeState,
-                             String afterState,
-                             String metadataJson) {}
-```
-
-**Flujo de escritura:** cada evento relevante del sistema invoca `AuditLogPort.record(...)`. El adaptador JPA persiste el registro en `audit_log`. El log queda inmutable.
-
-**Flujo de consulta (GET /api/v1/auditoria):** el controller recibe filtros opcionales (`from`, `to`, `userId`, `action`, `resource`), el servicio construye la consulta dinámica y devuelve registros paginados.
-
-**Flujo de exportación (GET /api/v1/auditoria/export):** mismos filtros, responde con `text/csv`.
-
-**Notas:** el log de auditoría es inmutable; no se ofrecen operaciones de actualización o eliminación.
-
----
-
-### FINANCIAL DATA — Parcialmente implementado
-
-Captura y versionado de datos financieros de los solicitantes: ingresos, gastos, deudas y activos.
+Captura y versionado de datos financieros del solicitante. Cada actualización crea una nueva versión; se pueden comparar versiones entre sí.
 
 ```java
 public record FinancialData(UUID id, UUID applicantId, int version,
@@ -509,15 +369,12 @@ public record FinancialData(UUID id, UUID applicantId, int version,
                             int creditHistoryMonths, int defaultsLast12m, int defaultsLast24m,
                             Integer externalBureauScore, int activeCreditProducts,
                             OffsetDateTime createdAt, OffsetDateTime updatedAt)
-// Reglas: applicantId obligatorio; version >= 0;
-// montos >= 0; externalBureauScore entre 0 y 999 si presente
+// externalBureauScore: 0–999 si presente; montos >= 0
 ```
-
-**Pendiente:** consulta de historial (`GET /api/v1/solicitantes/{id}/datos-financieros?incluir_historial=true`)
 
 ---
 
-### SCORING — Implementado
+### SCORING
 
 Gestión de variables de scoring: definición, pesos, rangos numéricos y categorías.
 
@@ -525,125 +382,127 @@ Gestión de variables de scoring: definición, pesos, rangos numéricos y catego
 public record ScoringVariable(UUID id, String nombre, String descripcion,
                                VariableType tipo, BigDecimal peso, boolean activa,
                                List<VariableRange> rangos, List<VariableCategory> categorias)
-// Validaciones:
-// - nombre obligatorio y único en BD
-// - tipo: NUMERIC o CATEGORICAL
-// - peso: 0.01–1.00
-// - rangos válidos para NUMERIC: contiguos, sin solapamientos, desde 0
+// tipo: NUMERIC o CATEGORICAL
+// peso: 0.01–1.00
+// rangos NUMERIC: contiguos, sin solapamientos, desde 0
+// La suma de pesos del modelo completo debe ser 1.00 al activar
 ```
-
-**Endpoints:** `POST /api/v1/variables-scoring` · `PUT /api/v1/variables-scoring/{id}` · `GET /api/v1/variables-scoring`
 
 ---
 
-### SCORING MODEL — Implementado
+### SCORING MODEL
 
-Gestión del ciclo de vida de modelos de scoring y sus reglas de knockout.
+Ciclo de vida de modelos y reglas de knockout. Solo puede haber un modelo `ACTIVE` al mismo tiempo.
 
 ```java
 public record ScoringModel(UUID id, String nombre, String descripcion, int version,
                             ModelStatus estado, List<ModelVariable> variables,
                             OffsetDateTime fechaCreacion, OffsetDateTime fechaActivacion)
-// Estados: DRAFT (editable) → ACTIVE (en uso, solo uno a la vez) → INACTIVE (histórico)
-// Restricciones de activación: pesos suman 1.00 (RN1), mínimo 3 variables (RN2)
+// DRAFT (editable) → ACTIVE (en uso) → INACTIVE (histórico)
+// Restricciones de activación: pesos suman 1.00 (RN1), mínimo 3 variables activas (RN2)
 
 public record KnockoutRule(UUID id, UUID modeloId, String campo, KnockoutOperator operador,
                             BigDecimal umbral, String mensaje, int prioridad, boolean activa)
 // Operadores: GT | LT | GTE | LTE | EQ | NEQ
-// prioridad: orden de evaluación (ascendente)
+// Se evalúan en orden ascendente por prioridad; la primera que dispara rechaza
 ```
-
-**Flujo de activación:**
-1. `PUT /api/v1/modelos-scoring/{id}/activar` valida peso total = 1.00 y mínimo 3 variables
-2. El modelo anterior pasa a `INACTIVE`
-3. Solo puede haber un modelo `ACTIVE` al mismo tiempo (restricción en BD)
-
-**Endpoints:** `POST /api/v1/modelos-scoring` · `GET /api/v1/modelos-scoring` · `GET /api/v1/modelos-scoring/{id}` · `PUT /api/v1/modelos-scoring/{id}/activar` · `GET /api/v1/modelos-scoring/comparar` · CRUD de reglas KO en `/api/v1/modelos-scoring/{modeloId}/reglas-knockout`
 
 ---
 
-### SCORING ENGINE — Implementado
+### SCORING ENGINE
 
-Motor de cálculo de scoring y modo de simulación para pruebas sin persistencia.
+Motor de cálculo y modo de simulación.
 
 ```java
 public record ScoringResult(UUID modeloId, UUID aplicanteId, BigDecimal puntajeFinal,
                              List<VariableScoreDetail> desglose,
                              List<KnockoutEvaluationDetail> reglasKoEvaluadas,
                              boolean rechazadoPorKo, String mensajeKo)
-// puntajeFinal = Σ(puntaje_variable_i × peso_i)
+// puntajeFinal = Σ(puntaje_rango_variable_i × peso_i)
 // Si alguna KO rule dispara → puntajeFinal = 0, rechazadoPorKo = true
-
-public record SimulationScenario(UUID id, UUID modeloId, String nombre, String descripcion,
-                                  Map<String, BigDecimal> valoresVariables,
-                                  OffsetDateTime fechaCreacion, String creadoPor)
 ```
 
 **Flujo de cálculo:**
-1. Se obtiene el modelo `ACTIVE` y sus variables y reglas KO
+1. Obtiene el modelo `ACTIVE` con sus variables y reglas KO
 2. `FinancialDataValueExtractor` extrae los valores del `FinancialData` del solicitante
-3. `ScoringCalculator` evalúa KO rules (en orden por `prioridad`); si alguna dispara → score = 0
-4. Si no hay KO: calcula `puntaje_final = Σ(puntaje_rango_variable × peso)`
+3. `ScoringCalculator` evalúa KO rules por prioridad; si alguna dispara → score = 0
+4. Si no hay KO: calcula `puntajeFinal = Σ(puntaje_rango × peso)`
 
-**Endpoints:** `POST /api/v1/scoring/calcular` · `POST /api/v1/scoring/simular` · `POST /api/v1/scoring/simulaciones` · `GET /api/v1/scoring/simulaciones` · `POST /api/v1/scoring/simulaciones/{id}/ejecutar`
+**Simulación:** permite calcular el score con valores hipotéticos sin persistencia. Los escenarios guardados (`SimulationScenario`) persisten los valores en un campo JSONB.
 
 ---
 
-### EVALUATION — Implementado
+### EVALUATION
 
-Ejecución de evaluaciones crediticias completas y generación de reportes PDF.
+Ejecución de evaluaciones crediticias completas y generación de reportes.
 
 ```java
 public record Evaluation(UUID id, UUID applicantId, UUID modelId, UUID financialDataId,
                           BigDecimal totalScore, RiskLevel riskLevel, boolean knockedOut,
                           String knockoutReasons, OffsetDateTime evaluatedAt, String evaluatedBy,
-                          OffsetDateTime createdAt, String createdBy,
                           List<EvaluationDetail> details, List<EvaluationKnockout> knockouts)
 // RiskLevel: VERY_LOW | LOW | MEDIUM | HIGH | VERY_HIGH | REJECTED
 // knockedOut = true cuando una KO rule dispara → riskLevel = REJECTED, totalScore = 0
 ```
 
-**Flujo de evaluación (`POST /api/v1/evaluaciones`):**
+**Flujo de evaluación:**
 1. Valida que el solicitante tenga `FinancialData` registrado (→ 422 si no)
-2. Verifica cooldown: no se puede re-evaluar el mismo solicitante antes de N días (→ 409)
-3. Delega el cálculo al `ScoringEngine` vía puerto interno
-4. Persiste la `Evaluation` con todos sus detalles y registros KO
-5. Retorna la evaluación con `totalScore`, `riskLevel`, y desglose
+2. Verifica cooldown configurable (→ 409 si está en período de espera)
+3. Delega el cálculo al motor de scoring vía puerto interno
+4. Persiste la evaluación con todos sus detalles y registros KO
 
-**Endpoints:** `POST /api/v1/evaluaciones` · `GET /api/v1/evaluaciones/{id}` · `GET /api/v1/evaluaciones/{id}/pdf`
+**Búsqueda:** filtros por solicitante, período, nivel de riesgo, analista evaluador, con paginación. Exportación CSV con streaming (sin límite), exportación PDF (cap 1000 filas).
 
 ---
 
-### CREDIT DECISION — Implementado
+### CREDIT DECISION
 
-Registro de la decisión final tomada sobre una evaluación crediticia. Las decisiones son **inmutables** una vez registradas.
+Registro de la decisión final sobre una evaluación. Inmutable una vez registrada.
 
 ```java
 public record CreditDecision(UUID id, UUID evaluationId, DecisionStatus decision,
                               String observations, String analystId,
-                              OffsetDateTime decidedAt, OffsetDateTime createdAt, String createdBy,
-                              String supervisorId, OffsetDateTime resolutionDeadlineAt)
+                              OffsetDateTime decidedAt, String supervisorId,
+                              OffsetDateTime resolutionDeadlineAt)
 // DecisionStatus: APPROVED | REJECTED | MANUAL_REVIEW | ESCALATED
-// observations: mínimo 20 caracteres (CA3)
-// ESCALATED: deadline automático de 48h + supervisorId obligatorio (RN4)
-// CA4/RN1: si la evaluación fue rechazada por KO → solo REJECTED es válido
+// observations: mínimo 20 caracteres
+// ESCALATED: deadline automático de 48h + supervisorId obligatorio
+// Si la evaluación fue knockedOut → solo REJECTED es válido
 ```
-
-**Flujo de registro (`POST /api/v1/evaluaciones/{id}/decision`):**
-1. Verifica que no exista ya una decisión para esa evaluación (→ 409 si ya hay)
-2. Si la evaluación fue `knockedOut`, valida que la decisión sea `REJECTED` (→ 400 si no)
-3. Crea la `CreditDecision` via factory `CreditDecision.crear()`
-4. Para `ESCALATED`: calcula automáticamente `resolutionDeadlineAt = ahora + 48h`, dispara `EscalationNotificationPort`
-5. Persiste vía `CreditDecisionRepositoryPort`
-
-**Endpoints:** `POST /api/v1/evaluaciones/{id}/decision` · `GET /api/v1/evaluaciones/{id}/decision`
 
 ---
 
-### REPORTING — Stub
+### REPORTING
 
-- **Controller stub:** `GET /api/v1/reportes/distribución`
-- **Pendiente:** queries agregadas, exportación
+Reportes analíticos para gestión de riesgo. Ver sección 10 para detalle completo.
+
+| Reporte | HU | Formatos |
+|---------|----|---------|
+| Distribución de riesgo | HU-015 | JSON, PDF |
+| Efectividad del modelo | HU-016 | JSON, PDF |
+| Actividad de analistas | HU-017 | JSON, PDF, CSV |
+
+---
+
+### SHARED/SECURITY
+
+Autenticación JWT y control de acceso basado en roles (RBAC). Ver sección 9.
+
+---
+
+### SHARED/AUDIT
+
+Captura inmutable de eventos críticos del sistema.
+
+```java
+public record AuditLogRecord(UUID id, OffsetDateTime timestamp,
+                             String userId, String username,
+                             String action, String resource, String resourceId,
+                             String ipAddress, String result,
+                             String beforeState, String afterState, String metadataJson)
+```
+
+Consulta con filtros opcionales (from/to, userId, action, resource) y paginación. Exportación a CSV. El log es inmutable: no hay operaciones de actualización ni eliminación.
 
 ---
 
@@ -659,12 +518,12 @@ infrastructure  →  application  →  domain
 
 El dominio **nunca** importa clases de Spring, JPA, ni ninguna librería de infraestructura.
 
-### Reglas de dependencia — detalle
+### Tabla de dependencias permitidas
 
 | Desde | Hacia | Permitido |
 |-------|-------|-----------|
 | `infrastructure` | `application` | Sí |
-| `infrastructure` | `domain` | Sí (solo para usar modelos y puertos) |
+| `infrastructure` | `domain` | Sí (solo modelos y puertos) |
 | `application` | `domain` | Sí |
 | `application` | `infrastructure` | **No** — usa puertos (interfaces) |
 | `domain` | `application` | **No** |
@@ -674,22 +533,18 @@ El dominio **nunca** importa clases de Spring, JPA, ni ninguna librería de infr
 
 ### Enforcement con ArchUnit
 
-Las reglas anteriores están **verificadas en build time** por `ArchitectureRulesTest`. Cualquier violación rompe el pipeline de CI.
-
-```
-src/test/java/.../architecture/ArchitectureRulesTest.java
-```
-
-Las 4 reglas actualmente verificadas:
+Las reglas anteriores están **verificadas en build time** por `ArchitectureRulesTest`:
 
 | Test | Regla |
 |------|-------|
 | `domain_should_not_import_infrastructure` | Ninguna clase en `..domain..` depende de `..infrastructure..` |
-| `domain_should_not_import_spring_framework` | Ninguna clase en `..domain..` (fuera de `shared.exception`) depende de `org.springframework..` |
+| `domain_should_not_import_spring_framework` | Ninguna clase en `..domain..` depende de `org.springframework..` |
 | `domain_should_not_import_jpa_annotations` | Ninguna clase en `..domain..` depende de `jakarta.persistence..` |
 | `application_should_not_import_infrastructure_adapters` | Ninguna clase en `..application..` depende de `..infrastructure..` |
 
-> Nota: `shared.exception` está excluido de la regla de Spring porque `GlobalExceptionHandler` (que es infraestructura de Spring) necesita ser encontrado, pero las excepciones de dominio en sí son Java puro. `DomainException` extends `RuntimeException`, sin dependencias de framework.
+Un import incorrecto rompe el build de CI.
+
+> Nota: `shared.exception` está excluido de la regla de Spring porque `GlobalExceptionHandler` (infraestructura de Spring) vive ahí, pero las excepciones de dominio en sí son Java puro. `DomainException` extiende `RuntimeException`, sin dependencias de framework.
 
 ---
 
@@ -719,7 +574,7 @@ public interface RegisterApplicantUseCase {
 }
 ```
 
-**Servicio de aplicación** (en `application/service/`): implementa el puerto IN, inyecta puertos OUT por constructor.
+**Servicio de aplicación** (en `application/service/`): implementa el puerto IN, inyecta puertos OUT por constructor, lleva `@Transactional`.
 
 ---
 
@@ -728,53 +583,23 @@ public interface RegisterApplicantUseCase {
 Todas las excepciones de dominio extienden `DomainException`:
 
 ```java
-// shared/exception/DomainException.java
 public abstract class DomainException extends RuntimeException {
-    protected DomainException(String message) { super(message); }
-    protected DomainException(String message, Throwable cause) { super(message, cause); }
-
-    public int httpStatusCode() { return 400; }          // override en subclase
-    public String errorCode() { return "DOMAIN_ERROR"; } // override en subclase
+    public int httpStatusCode() { return 400; }
+    public String errorCode() { return "DOMAIN_ERROR"; }
 }
 ```
 
-Cada excepción de dominio sobreescribe los métodos para definir su propio código HTTP y `errorCode`:
-
-```java
-// Ejemplo: applicant/domain/exception/DuplicateApplicantException.java
-public class DuplicateApplicantException extends DomainException {
-    public DuplicateApplicantException(String id) {
-        super("Applicant with identification already exists: " + id);
-    }
-    @Override public int httpStatusCode() { return 409; }
-    @Override public String errorCode() { return "DUPLICATE_RESOURCE"; }
-}
-```
-
-El `GlobalExceptionHandler` tiene **un único handler genérico** para todas las excepciones de dominio. No importa ningún módulo específico:
-
-```java
-// GlobalExceptionHandler.java
-@ExceptionHandler(DomainException.class)
-public ProblemDetail handleDomainException(DomainException ex, WebRequest request) {
-    HttpStatus httpStatus = HttpStatus.resolve(ex.httpStatusCode());
-    // ...construye ProblemDetail con ex.httpStatusCode() y ex.errorCode()
-}
-```
-
-**Consecuencia práctica (OCP):** cuando se agrega un nuevo módulo con nuevas excepciones, basta con que extiendan `DomainException` — no hay que tocar `GlobalExceptionHandler`.
+El `GlobalExceptionHandler` tiene un único `@ExceptionHandler(DomainException.class)` que delega en el polimorfismo. Agregar un nuevo módulo con nuevas excepciones no requiere tocar el handler.
 
 ---
 
 ### 6.3 PagedResult / PageRequest — Paginación sin Spring
 
-Los puertos de dominio usan tipos Java puros para paginación:
+Los puertos de dominio usan tipos Java puros:
 
 ```java
-// shared/PageRequest.java
 public record PageRequest(int page, int size) {}
 
-// shared/PagedResult.java
 public record PagedResult<T>(
         List<T> content,
         long totalElements,
@@ -783,80 +608,36 @@ public record PagedResult<T>(
         int pageSize) {}
 ```
 
-Los adaptadores de infraestructura convierten entre `PageRequest`/`PagedResult` y los tipos de Spring Data (`Pageable`/`Page`). El dominio nunca importa `org.springframework.data.domain.*`.
-
-**Ejemplo de conversión en el adaptador:**
-
-```java
-// ApplicantRepositoryAdapter.java
-@Override
-public PagedResult<ApplicantSummary> findAll(PageRequest pageRequest) {
-    Pageable pageable = org.springframework.data.domain.PageRequest.of(
-            pageRequest.page(), pageRequest.size());
-    Page<ApplicantJpaEntity> page = jpaRepository.findAll(pageable);
-    List<ApplicantSummary> content = page.getContent().stream()
-            .map(this::toSummary).toList();
-    return new PagedResult<>(content, page.getTotalElements(),
-            page.getTotalPages(), page.getNumber(), page.getSize());
-}
-```
+Los adaptadores convierten entre estos tipos y los de Spring Data (`Pageable` / `Page`). El dominio nunca importa `org.springframework.data.domain.*`.
 
 ---
 
 ### 6.4 @Transactional — Solo en servicios de aplicación
 
-`@Transactional` pertenece **únicamente** en los servicios de aplicación (`application/service/`). Los adaptadores de infraestructura **no llevan** `@Transactional`.
+`@Transactional` va **únicamente** en los servicios de aplicación. Los adaptadores de infraestructura no gestionan transacciones propias. La transacción abarca la unidad de trabajo completa del caso de uso.
 
-**Correcto:**
-```java
-// application/service/RegisterApplicantService.java
-@Service
-@Transactional
-public class RegisterApplicantService implements RegisterApplicantUseCase {
-    // ...
-}
-```
-
-**Incorrecto (no hacer esto):**
-```java
-// infrastructure/adapter/out/persistence/ApplicantRepositoryAdapter.java
-@Component
-// NO: @Transactional  ← no corresponde acá
-public class ApplicantRepositoryAdapter implements ApplicantRepositoryPort {
-    // ...
-}
-```
-
-La razón: la transacción abarca un caso de uso completo (unidad de trabajo de negocio). Si el adaptador manejara su propia transacción, podría confirmar parcialmente y romper la consistencia. Los adaptadores `TokenBlacklistAdapter`, `AuditLogAdapter` y `AppUserRepositoryAdapter` no tienen `@Transactional` por este motivo.
+Razón: si el adaptador manejara su propia transacción, podría confirmar parcialmente y romper la consistencia.
 
 ---
 
-### 6.5 CORS Externalizado
+### 6.5 CORS externalizado
 
-Los orígenes permitidos se leen desde la variable de entorno `CORS_ALLOWED_ORIGINS`:
-
-```java
-// shared/config/CorsConfig.java
-@Value("${cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173}")
-private String[] allowedOrigins;
-```
-
-En desarrollo, el default cubre los puertos típicos de React, Angular y Vite. En producción, definir `CORS_ALLOWED_ORIGINS` con los dominios del frontend.
+Los orígenes permitidos se leen de `CORS_ALLOWED_ORIGINS`. Default en dev: `http://localhost:3000,http://localhost:4200,http://localhost:5173`.
 
 ---
 
 ## 7. Manejo de Errores
 
-Todos los errores siguen **RFC 7807 (Problem Details)**. La respuesta siempre tiene esta estructura:
+Todos los errores siguen **RFC 7807 (Problem Details)**:
 
 ```json
 {
   "type": "https://api.creditscoring.udea.co/errors/validation",
   "title": "Validation Error",
   "status": 400,
-  "detail": "Los ingresos mensuales deben ser un valor numérico mayor a cero",
+  "detail": "Monthly income must be greater than zero",
   "errorCode": "VALIDATION_FAILED",
-  "timestamp": "2026-03-31T10:30:45.123Z",
+  "timestamp": "2026-05-22T10:30:45.123Z",
   "traceId": "a1b2c3d4e5f6",
   "path": "/api/v1/solicitantes"
 }
@@ -871,54 +652,52 @@ Todos los errores siguen **RFC 7807 (Problem Details)**. La respuesta siempre ti
 | `ScoringVariableValidationException` | scoring | 400 | `VALIDATION_FAILED` | Rangos inválidos, peso fuera de rango |
 | `ScoringModelValidationException` | scoringmodel | 400 | `VALIDATION_FAILED` | Peso total ≠ 1.00, menos de 3 variables |
 | `CreditDecisionValidationException` | creditdecision | 400 | `CREDIT_DECISION_VALIDATION_FAILED` | Observaciones < 20 caracteres |
-| `CreditDecisionKnockoutException` | creditdecision | 400 | `CREDIT_DECISION_KNOCKOUT_CONFLICT` | KO evaluation → solo REJECTED es válido |
-| `MethodArgumentNotValidException` | shared | 400 | `VALIDATION_FAILED` | Falla en `@Valid` de la request |
-| `ApplicantNoFinancialDataException` | evaluation | 422 | `NO_FINANCIAL_DATA` | Solicitante sin datos financieros registrados |
+| `CreditDecisionKnockoutException` | creditdecision | 400 | `CREDIT_DECISION_KNOCKOUT_CONFLICT` | KO evaluation → solo REJECTED válido |
+| `MethodArgumentNotValidException` | shared | 400 | `VALIDATION_FAILED` | Falla en `@Valid` del request |
+| `ApplicantNoFinancialDataException` | evaluation | 422 | `NO_FINANCIAL_DATA` | Solicitante sin datos financieros |
 | `InvalidCredentialsException` | security | 401 | `INVALID_CREDENTIALS` | Login fallido |
-| `AccessDeniedException` | shared | 403 | `ACCESS_DENIED` | Rol insuficiente (`@PreAuthorize`) |
-| `ResourceNotFoundException` | shared | 404 | `RESOURCE_NOT_FOUND` | Entidad no encontrada por ID |
+| `AccessDeniedException` | shared | 403 | `ACCESS_DENIED` | Rol insuficiente |
+| `ResourceNotFoundException` | shared | 404 | `RESOURCE_NOT_FOUND` | Entidad no encontrada |
 | `DuplicateApplicantException` | applicant | 409 | `DUPLICATE_RESOURCE` | Identificación ya registrada |
 | `DuplicateUserException` | security | 409 | `DUPLICATE_USER` | Username/email ya registrado |
 | `LastAdminException` | security | 409 | `LAST_ADMIN` | Intento de quitar el único admin |
-| `EvaluationCooldownException` | evaluation | 409 | `EVALUATION_COOLDOWN` | Re-evaluación antes del período de cooldown |
-| `CreditDecisionAlreadyExistsException` | creditdecision | 409 | `CREDIT_DECISION_ALREADY_EXISTS` | Ya existe una decisión para esa evaluación |
+| `EvaluationCooldownException` | evaluation | 409 | `EVALUATION_COOLDOWN` | Re-evaluación antes del cooldown |
+| `CreditDecisionAlreadyExistsException` | creditdecision | 409 | `CREDIT_DECISION_ALREADY_EXISTS` | Ya existe decisión para esa evaluación |
 | `Exception` (genérico) | shared | 500 | `INTERNAL_ERROR` | Error no esperado |
-
-El handler global está en `shared/exception/GlobalExceptionHandler.java`.
 
 ---
 
 ## 8. Base de Datos
 
-El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resources/db/migration/`.
+El esquema se gestiona con **Flyway**. Migraciones en `src/main/resources/db/migration/`.
 
-**Regla:** nunca modifiques una migración ya aplicada. Siempre creá una nueva.
+**Regla:** nunca modificar una migración ya aplicada. Siempre crear una nueva.
 
-### Tablas por migración
+### Evolución del esquema (V1–V32)
 
 | Migración | Cambios |
 |-----------|---------|
-| V1 | Esquema base e inicialización del proyecto |
-| V2 | `applicant` |
+| V1 | Esquema base e inicialización |
+| V2 | Tabla `applicant` |
 | V3 | Extensiones PostgreSQL (pgcrypto, uuid-ossp) |
-| V4 | `app_user`, `role_permission` |
-| V5 | `authentication_log`, `token_blacklist` |
-| V6 | `financial_data` |
-| V7 | `scoring_model` |
-| V8 | `scoring_variable`, `model_variable_mapping` |
-| V9 | `knockout_rule` |
-| V10 | `evaluation`, `evaluation_detail`, `evaluation_knockout` |
-| V11 | `credit_decision` |
-| V12 | `applicant_edit_audit` |
-| V13 | `audit_log` |
+| V4 | Tablas `app_user`, `role_permission` |
+| V5 | Tablas `authentication_log`, `token_blacklist` |
+| V6 | Tabla `financial_data` |
+| V7 | Tablas `scoring_model`, `scoring_variable` base |
+| V8 | Tablas `model_variable_mapping`, rangos y categorías |
+| V9 | Tabla `knockout_rule` |
+| V10 | Tablas `evaluation`, `evaluation_detail`, `evaluation_knockout` |
+| V11 | Tabla `credit_decision` |
+| V12 | Tabla `applicant_edit_audit` |
+| V13 | Tabla `audit_log` |
 | V14 | Stored procedures y vistas |
-| V15 | Seed data (usuario admin + matriz de permisos) |
+| V15 | Seed: usuario admin + matriz de permisos |
 | V16 | Reemplaza rol AUDITOR → CREDIT_SUPERVISOR |
 | V17 | Simplifica PK de `audit_log`; agrega `created_by`/`updated_by` a `token_blacklist` |
-| V18 | Columna `phone` en `applicant`; permiso `ANALYST APPLICANT UPDATE` en `role_permission` |
-| V19 | Columnas `defaults_last_12m`, `defaults_last_24m`, `external_bureau_score`, `active_credit_products` en `financial_data` y `email`, `address` en `applicant` |
+| V18 | Columna `phone` en `applicant`; permiso `ANALYST APPLICANT UPDATE` |
+| V19 | Columnas `defaults_last_12m`, `defaults_last_24m`, `external_bureau_score`, `active_credit_products` en `financial_data`; `email`, `address` en `applicant` |
 | V20 | Columna `result` en `audit_log` |
-| V21 | Hace `entity_id` nullable en `audit_log` para fallos de login |
+| V21 | Hace `entity_id` nullable en `audit_log` (para fallos de login) |
 | V22 | Columna `peso` en `scoring_variable` (BigDecimal 0.01–1.00) |
 | V23 | Actualiza constraint de `scoring_model.status` a DRAFT/ACTIVE/INACTIVE |
 | V24 | Columna `model_id` FK en `knockout_rule` (reglas scoped por modelo) |
@@ -926,58 +705,66 @@ El esquema se gestiona con **Flyway**. Las migraciones están en `src/main/resou
 | V26 | Agrega `REJECTED` al constraint de `evaluation.risk_level` |
 | V27 | Agrega `ESCALATED` al constraint de `credit_decision.decision` |
 | V28 | Columnas `supervisor_id` y `resolution_deadline_at` en `credit_decision` |
+| V29 | Corrige usuarios de demo (seed actualizado) |
+| V30 | Índice de clasificación de riesgo en `evaluation` |
+| V31 | Índices de búsqueda en `evaluation` (filtros de HU-010) |
+| V32 | Índices de analytics para reportes HU-015/016/017 |
 
 ### Convenciones de la BD
 
 - Todas las PKs son **UUID** (no auto-increment)
-- Toda tabla tiene `created_at`, `created_by` (no updatable)
+- Toda tabla tiene `created_at`, `created_by` (no actualizables)
 - Tablas mutables tienen además `updated_at`, `updated_by`
-- Los datos sensibles nunca se almacenan en plano (identificaciones → AES-GCM encrypted)
-- Detección de duplicados via hash (HMAC-SHA256) sin exponer el dato original
+- Los datos sensibles nunca se almacenan en plano:
+  - Identificaciones: `identification_encrypted` (AES-256-GCM + IV, base64)
+  - Detección de duplicados via `identification_hash` (HMAC-SHA256, UNIQUE)
+  - Contraseñas: BCrypt en `password_hash`
 
 ### Tabla `applicant`
 
 ```sql
-id UUID PRIMARY KEY
-name VARCHAR(150) NOT NULL
+id                      UUID PRIMARY KEY
+name                    VARCHAR(150) NOT NULL
 identification_encrypted VARCHAR(700) NOT NULL   -- AES-GCM + IV, base64
-identification_hash VARCHAR(128) NOT NULL         -- HMAC-SHA256, base64, UNIQUE
-birth_date DATE NOT NULL
-employment_type VARCHAR(30) NOT NULL
-monthly_income NUMERIC(19,2) NOT NULL
-work_experience_months INTEGER NOT NULL
-phone VARCHAR(20) NULL
-created_at TIMESTAMP WITH TIME ZONE NOT NULL
-created_by VARCHAR(100) NOT NULL
-updated_at TIMESTAMP WITH TIME ZONE
-updated_by VARCHAR(100)
+identification_hash     VARCHAR(128) NOT NULL UNIQUE  -- HMAC-SHA256, base64
+birth_date              DATE NOT NULL
+employment_type         VARCHAR(30) NOT NULL
+monthly_income          NUMERIC(19,2) NOT NULL
+work_experience_months  INTEGER NOT NULL
+phone                   VARCHAR(20) NULL
+email                   VARCHAR(255) NULL
+address                 VARCHAR(500) NULL
+created_at              TIMESTAMP WITH TIME ZONE NOT NULL
+created_by              VARCHAR(100) NOT NULL
+updated_at              TIMESTAMP WITH TIME ZONE
+updated_by              VARCHAR(100)
 ```
 
 ### Tabla `app_user`
 
 ```sql
-id UUID PRIMARY KEY
-username VARCHAR(50) NOT NULL UNIQUE
-email VARCHAR(255) NOT NULL UNIQUE
-password_hash VARCHAR(255) NOT NULL    -- BCrypt
-role VARCHAR(30) NOT NULL              -- ADMIN | ANALYST | RISK_MANAGER | CREDIT_SUPERVISOR
-enabled BOOLEAN NOT NULL DEFAULT true
-account_locked BOOLEAN NOT NULL DEFAULT false
-failed_login_attempts INTEGER NOT NULL DEFAULT 0
-password_changed_at TIMESTAMP WITH TIME ZONE NOT NULL
-created_at TIMESTAMP WITH TIME ZONE NOT NULL
-created_by VARCHAR(100) NOT NULL
+id                      UUID PRIMARY KEY
+username                VARCHAR(50) NOT NULL UNIQUE
+email                   VARCHAR(255) NOT NULL UNIQUE
+password_hash           VARCHAR(255) NOT NULL    -- BCrypt
+role                    VARCHAR(30) NOT NULL     -- ADMIN | ANALYST | RISK_MANAGER | CREDIT_SUPERVISOR
+enabled                 BOOLEAN NOT NULL DEFAULT true
+account_locked          BOOLEAN NOT NULL DEFAULT false
+failed_login_attempts   INTEGER NOT NULL DEFAULT 0
+password_changed_at     TIMESTAMP WITH TIME ZONE NOT NULL
+created_at              TIMESTAMP WITH TIME ZONE NOT NULL
+created_by              VARCHAR(100) NOT NULL
 ```
 
 ### Tabla `token_blacklist`
 
 ```sql
-id UUID PRIMARY KEY
-jti VARCHAR(36) NOT NULL UNIQUE      -- JWT ID revocado
-user_id UUID NOT NULL
-reason VARCHAR(50) NOT NULL
-revoked_at TIMESTAMP WITH TIME ZONE NOT NULL
-expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+id          UUID PRIMARY KEY
+jti         VARCHAR(36) NOT NULL UNIQUE  -- JWT ID revocado
+user_id     UUID NOT NULL
+reason      VARCHAR(50) NOT NULL
+revoked_at  TIMESTAMP WITH TIME ZONE NOT NULL
+expires_at  TIMESTAMP WITH TIME ZONE NOT NULL
 ```
 
 ---
@@ -987,13 +774,11 @@ expires_at TIMESTAMP WITH TIME ZONE NOT NULL
 ### Flujo de autenticación
 
 ```
-1. POST /api/v1/auth/login
-   { "username": "ana", "password": "..." }
+1. POST /api/v1/auth/login  { "username": "ana", "password": "..." }
         ↓
 2. AuthController → AuthenticateService
         ↓
-3. Spring Security valida credenciales
-   (DaoAuthenticationProvider + BCrypt)
+3. Spring Security valida credenciales (DaoAuthenticationProvider + BCrypt)
         ↓
 4. Si OK → JwtService.generateToken(user)
    Claims del JWT: sub=username, jti=UUID, role=ANALYST, exp=...
@@ -1023,128 +808,92 @@ Controller con @PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")
 
 | Rol | Descripción |
 |-----|-------------|
-| `ADMIN` | Acceso total. Único que puede cambiar roles. |
+| `ADMIN` | Acceso total. Único que puede crear usuarios y cambiar roles. |
 | `ANALYST` | Registra solicitantes, captura datos financieros, crea evaluaciones. |
-| `RISK_MANAGER` | Gestiona modelos de scoring, decide créditos, ve reportes. |
-| `CREDIT_SUPERVISOR` | Supervisa evaluaciones y ve reportes. |
+| `RISK_MANAGER` | Gestiona modelos de scoring, registra decisiones, accede a reportes de distribución y efectividad. |
+| `CREDIT_SUPERVISOR` | Supervisa evaluaciones, accede al reporte de actividad de analistas. |
 
 ### Protecciones especiales
 
-- **Último admin:** si solo hay un `ADMIN`, el sistema rechaza cambiarle el rol.
-- **Blacklist de tokens:** al revocar acceso de un usuario, todos sus tokens quedan inválidos.
+- **Último admin:** si solo hay un `ADMIN`, el sistema rechaza cambiarle el rol (`LastAdminException`).
+- **Token blacklist:** al revocar acceso, todos los tokens del usuario quedan inválidos inmediatamente.
 - **Cuenta bloqueada:** si `account_locked = true`, el JWT es rechazado aunque sea válido.
+- **Encriptación de PII:** identificaciones almacenadas con AES-256-GCM; búsqueda por hash HMAC sin exponer el dato.
 
 ### Variables de entorno requeridas en producción
 
 ```bash
-APP_JWT_SECRET=<base64 de al menos 32 bytes>
-APP_CRYPTO_ENCRYPTION_KEY_BASE64=<AES-256 key en base64, 32 bytes>
-APP_CRYPTO_HASH_KEY_BASE64=<HMAC key en base64, 32 bytes>
+APP_JWT_SECRET=<base64 de al menos 32 bytes aleatorios>
+APP_CRYPTO_ENCRYPTION_KEY_BASE64=<AES-256 key en base64, exactamente 32 bytes>
+APP_CRYPTO_HASH_KEY_BASE64=<HMAC key en base64, exactamente 32 bytes>
 CORS_ALLOWED_ORIGINS=https://app.creditscoring.example.com
 ```
 
 ---
 
-## 10. Endpoints y Roles
+## 10. Subsistema de Reportes (HU-015 / HU-016 / HU-017)
 
-### Públicos (sin token)
+Los tres reportes analíticos están implementados en el bounded context `reporting` con arquitectura hexagonal completa (dominio → application → infrastructure).
 
-| Método | Path | Descripción |
-|--------|------|-------------|
-| POST | `/api/v1/auth/login` | Login → JWT |
-| GET | `/actuator/health` | Health check |
-| GET | `/api-docs/**` | OpenAPI spec |
-| GET | `/swagger-ui/**` | Swagger UI |
+### Diseño común
 
-### Protegidos
+- **Persistencia:** los datos de cada reporte se obtienen con queries JPQL o JPA nativas de agregación sobre las tablas `evaluation`, `credit_decision` y `app_user`. No hay tablas de reporte propias.
+- **Formatos:** cada reporte puede solicitarse en JSON (respuesta directa), PDF (OpenPDF, adjunto descargable) o CSV donde aplica (streaming via `StreamingResponseBody`).
+- **Filtros:** todos los reportes aceptan filtros de rango de fechas (`desde`, `hasta`); algunos aceptan filtros adicionales (tipo de empleo, ID de analista).
 
-**Solicitantes**
+### HU-015 — Distribución de Riesgo
 
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/solicitantes` | ANALYST, ADMIN | Implementado |
-| GET | `/api/v1/solicitantes` | ANALYST, RISK_MANAGER, ADMIN, CREDIT_SUPERVISOR | Implementado |
-| PATCH | `/api/v1/solicitantes/{id}` | ANALYST, ADMIN | Implementado |
+Distribución del total de evaluaciones por nivel de riesgo (`VERY_LOW`, `LOW`, `MEDIUM`, `HIGH`, `VERY_HIGH`, `REJECTED`) para un período y tipo de empleo dados.
 
-**Datos financieros**
+- **Query:** agregación `GROUP BY risk_level` sobre `evaluation`.
+- **PDF:** tabla con nivel de riesgo, cantidad y porcentaje; gráfico de barras textual.
+- **Rol:** ADMIN, RISK_MANAGER.
 
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/solicitantes/{id}/datos-financieros` | ANALYST, ADMIN | Implementado |
+### HU-016 — Efectividad del Modelo
 
-**Autenticación y usuarios**
+Analiza la concordancia entre la clasificación automática del modelo y la decisión final del analista.
 
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/auth/usuarios` | ADMIN | Implementado |
-| PATCH | `/api/v1/auth/usuarios/{id}/rol` | ADMIN | Implementado |
-| GET | `/api/v1/roles/permisos` | ADMIN | Implementado |
+- **Matriz de confusión 5×4:** filas = nivel de riesgo (excluyendo REJECTED), columnas = decisión (APPROVED / REJECTED / MANUAL_REVIEW / ESCALATED).
+- **Tasa de concordancia:** porcentaje de casos donde la decisión fue congruente con el nivel de riesgo.
+- **Tasa de override:** porcentaje de casos donde se aprobó una evaluación de alto riesgo o se rechazó una de bajo riesgo.
+- **Query:** join entre `evaluation` y `credit_decision`, agregaciones por combinación riesgo × decisión.
+- **Rol:** ADMIN, RISK_MANAGER.
 
-**Auditoría**
+### HU-017 — Actividad de Analistas
 
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| GET | `/api/v1/auditoria` | ADMIN, RISK_MANAGER, CREDIT_SUPERVISOR | Implementado |
-| GET | `/api/v1/auditoria/export` | ADMIN, RISK_MANAGER, CREDIT_SUPERVISOR | Implementado |
+Métricas de productividad por analista para un período dado.
 
-**Variables de scoring**
+- **Métricas por analista:** total de evaluaciones, tiempo promedio de resolución, distribución de decisiones tomadas.
+- **Cálculo de horas hábiles:** `BusinessHoursCalculator` — considera solo días hábiles (lunes a viernes), horario 08:00–18:00 zona horaria `America/Bogota` (configurable via `APP_REPORTING_BUSINESS_TIMEZONE`).
+- **Detección de outliers:** `OutlierDetector` — marca analistas cuyo tiempo promedio de resolución se aleja más de ±2 desviaciones estándar de la media del grupo.
+- **Exportación CSV:** streaming sin límite de filas.
+- **Rol:** ADMIN, RISK_MANAGER, CREDIT_SUPERVISOR.
 
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/variables-scoring` | ADMIN, RISK_MANAGER | Implementado |
-| PUT | `/api/v1/variables-scoring/{id}` | ADMIN, RISK_MANAGER | Implementado |
-| GET | `/api/v1/variables-scoring` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
+### Estructura del bounded context `reporting`
 
-**Modelos de scoring**
-
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/modelos-scoring` | ADMIN, RISK_MANAGER | Implementado |
-| GET | `/api/v1/modelos-scoring` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
-| GET | `/api/v1/modelos-scoring/{id}` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
-| PUT | `/api/v1/modelos-scoring/{id}/activar` | ADMIN, RISK_MANAGER | Implementado |
-| GET | `/api/v1/modelos-scoring/comparar` | ADMIN, RISK_MANAGER, ANALYST, CREDIT_SUPERVISOR | Implementado |
-| GET | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout` | ADMIN, RISK_MANAGER, ANALYST | Implementado |
-| POST | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout` | ADMIN, RISK_MANAGER | Implementado |
-| PUT | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout/{id}` | ADMIN, RISK_MANAGER | Implementado |
-| DELETE | `/api/v1/modelos-scoring/{modeloId}/reglas-knockout/{id}` | ADMIN, RISK_MANAGER | Implementado |
-
-**Motor de scoring y simulación**
-
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/scoring/calcular` | ADMIN, ANALYST, RISK_MANAGER | Implementado |
-| POST | `/api/v1/scoring/simular` | Autenticado | Implementado |
-| POST | `/api/v1/scoring/simulaciones` | Autenticado | Implementado |
-| GET | `/api/v1/scoring/simulaciones` | Autenticado | Implementado |
-| POST | `/api/v1/scoring/simulaciones/{id}/ejecutar` | Autenticado | Implementado |
-
-**Evaluaciones**
-
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/evaluaciones` | ADMIN, ANALYST | Implementado |
-| GET | `/api/v1/evaluaciones/{id}` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | Implementado |
-| GET | `/api/v1/evaluaciones/{id}/pdf` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | Implementado |
-
-**Decisiones crediticias**
-
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| POST | `/api/v1/evaluaciones/{id}/decision` | ADMIN, RISK_MANAGER | Implementado |
-| GET | `/api/v1/evaluaciones/{id}/decision` | ADMIN, ANALYST, CREDIT_SUPERVISOR, RISK_MANAGER | Implementado |
-
-**Reportes**
-
-| Método | Path | Roles permitidos | Estado |
-|--------|------|-----------------|--------|
-| GET | `/api/v1/reportes/distribución` | ADMIN, RISK_MANAGER | Stub |
+```
+reporting/
+├── domain/
+│   ├── model/efectividad/ → ConfusionMatrix, ModelEffectivenessReport, ...
+│   ├── model/analistas/   → AnalystMetrics, AnalystActivityReport, OutlierInfo, ...
+│   └── port/in/efectividad/ + analistas/
+├── application/
+│   ├── service/efectividad/  → ModelEffectivenessService
+│   ├── service/analistas/    → AnalystActivityService
+│   └── util/                 → BusinessHoursCalculator, OutlierDetector
+└── infrastructure/adapter/out/
+    ├── persistence/efectividad/  ← queries JPA de agregación
+    ├── persistence/analistas/    ← queries JPA de agregación
+    ├── pdf/efectividad/          ← OpenPDF: tabla + métricas de concordancia
+    ├── pdf/analistas/            ← OpenPDF: tabla por analista + outliers marcados
+    └── csv/                      ← commons-csv streaming (HU-017)
+```
 
 ---
 
 ## 11. Tests
 
-Los tests están en `src/test/java/` organizados en tres niveles:
+### Estructura de tests
 
 ```
 test/
@@ -1157,27 +906,18 @@ test/
 │   ├── application/service/
 │   │   ├── SearchApplicantServiceTest.java
 │   │   └── UpdateApplicantServiceTest.java
-│   ├── domain/model/
-│   │   └── ApplicantTest.java
-│   └── migration/
-│       └── V18MigrationTest.java
+│   ├── domain/model/ApplicantTest.java
+│   └── migration/V18MigrationTest.java
 ├── creditdecision/
 │   ├── CreditDecisionIntegrationTest.java
-│   ├── application/service/
-│   │   └── RegisterCreditDecisionServiceTest.java
-│   └── domain/model/
-│       └── CreditDecisionTest.java
+│   ├── application/service/RegisterCreditDecisionServiceTest.java
+│   └── domain/model/CreditDecisionTest.java
 ├── evaluation/
-│   ├── integration/
-│   │   └── EvaluationIntegrationTest.java
-│   ├── application/
-│   │   └── ExecuteEvaluationServiceTest.java
-│   └── domain/
-│       ├── EvaluationDetailTest.java
-│       └── EvaluationKnockoutTest.java
+│   ├── integration/EvaluationIntegrationTest.java
+│   ├── application/ExecuteEvaluationServiceTest.java
+│   └── domain/ → EvaluationDetailTest, EvaluationKnockoutTest
 ├── financialdata/
-│   └── application/service/
-│       └── FinancialDataCommandServiceTest.java
+│   └── application/service/FinancialDataCommandServiceTest.java
 ├── scoring/
 │   └── ScoringVariableIntegrationTest.java
 ├── scoringengine/
@@ -1185,141 +925,74 @@ test/
 ├── scoringmodel/
 │   └── ScoringModelIntegrationTest.java
 └── shared/security/
-    ├── acceptance/
-    │   ├── AuthLoginAT.java
-    │   └── PermissionMatrixAT.java
-    ├── application/service/
-    │   ├── AuthenticateServiceTest.java
-    │   ├── ChangeUserRoleServiceTest.java
-    │   └── GetAuditLogsServiceTest.java
-    ├── infrastructure/
-    │   ├── jwt/
-    │   │   ├── JwtServiceTest.java
-    │   │   └── JwtAuthenticationFilterTest.java
-    │   └── rest/
-    │       └── AuditLogControllerTest.java
-    ├── integration/
-    │   ├── CreateUserIntegrationTest.java
-    │   ├── LastAdminProtectionIT.java
-    │   ├── SecurityFilterChainIT.java
-    │   └── TokenBlacklistFlowIT.java
-    └── migration/
-        └── V16MigrationTest.java
+    ├── acceptance/ → AuthLoginAT, PermissionMatrixAT
+    ├── application/service/ → AuthenticateServiceTest, ChangeUserRoleServiceTest, GetAuditLogsServiceTest
+    ├── infrastructure/jwt/ → JwtServiceTest, JwtAuthenticationFilterTest
+    ├── infrastructure/rest/ → AuditLogControllerTest
+    ├── integration/ → CreateUserIT, LastAdminProtectionIT, SecurityFilterChainIT, TokenBlacklistFlowIT
+    └── migration/V16MigrationTest.java
 ```
 
 ### Tipos de test
 
-**Unit tests** (`*Test.java`): prueban una clase en aislamiento, sin Spring context ni BD.
+| Tipo | Sufijo | Qué usa | Velocidad |
+|------|--------|---------|-----------|
+| Unit | `*Test` | Java puro, mocks | Muy rápido |
+| Integration | `*IT` / `*IntegrationTest` | Spring context completo + Testcontainers | Lento (PostgreSQL real) |
+| Acceptance | `*AT` | REST Assured + servidor Spring levantado | Lento |
+| Architecture | — | ArchUnit en build time | Instantáneo |
 
-**Integration tests** (`*IT.java`): levantan Spring context completo con Testcontainers (PostgreSQL real). Tardan más pero validan el flujo end-to-end real.
+### Perfil de test
 
-**Acceptance tests** (`*AT.java`): usan REST Assured para hacer requests HTTP reales contra un servidor Spring levantado. Son los más cercanos a lo que haría un cliente real.
-
-**Architecture tests**: corren con ArchUnit y verifican las reglas de dependencia en tiempo de compilación. Un import incorrecto rompe el build.
-
-### Cómo correr los tests
-
-```bash
-# Todos
-./gradlew test
-
-# Un test específico
-./gradlew test --tests "co.udea.codefactory.creditscoring.applicant.ApplicantRegistrationIntegrationTest"
-
-# Con logs visibles
-./gradlew test --info
-
-# Generar reporte de cobertura
-./gradlew jacocoTestReport
-# Reporte disponible en: build/reports/jacoco/test/jacocoTestReport.xml
-```
-
-**Requisito:** Docker debe estar corriendo. Los tests de integración usan Testcontainers para levantar PostgreSQL automáticamente.
-
-### Perfil de test (`application-test.yml`)
-
-Los tests corren con `@ActiveProfiles("test")` que activa:
-- Testcontainers JDBC driver (levanta PostgreSQL en Docker automáticamente)
-- Flyway ejecuta todas las migraciones en cada test context
-- JWT secret y crypto keys hardcodeadas (solo para tests)
+Los tests corren con `@ActiveProfiles("test")`:
+- Testcontainers JDBC driver levanta PostgreSQL automáticamente
+- Flyway ejecuta todas las migraciones en cada context de test
+- JWT secret y crypto keys hardcodeadas (solo para tests, no son secretos reales)
 
 ---
 
 ## 12. CI/CD
 
-El pipeline está en `.github/workflows/build-test.yml` y se ejecuta en cada push o pull request a `main`.
+Pipeline en `.github/workflows/build-test.yml`, se ejecuta en cada push o PR a `main`.
 
-### Pasos del pipeline
+### Pasos
 
-| Paso | Qué hace |
-|------|----------|
-| Checkout | Clona el repositorio con `actions/checkout@v4` |
-| Set up Java 21 | Instala Temurin JDK 21 con `actions/setup-java@v4` |
-| Cache Gradle | Cachea `~/.gradle/caches` y `~/.gradle/wrapper` con hash de `*.gradle.kts` |
-| Grant execute | `chmod +x gradlew` |
-| Run tests | `./gradlew clean test` (incluye ArchUnit, unit, integration, acceptance) |
-| Generate coverage | `./gradlew jacocoTestReport` (corre siempre, incluso si hay fallos) |
-| Upload coverage | Sube `build/reports/jacoco/test/jacocoTestReport.xml` como artefacto (7 días) |
-| Upload test results | Sube `build/reports/tests/test/` como artefacto (7 días) |
+| Paso | Detalle |
+|------|---------|
+| Checkout | `actions/checkout@v4` |
+| Java 21 | Temurin JDK via `actions/setup-java@v4` |
+| Cache Gradle | Hash de `*.gradle.kts` + `gradle-wrapper.properties` |
+| Tests | `./gradlew clean test` — unit + integration + acceptance + ArchUnit |
+| Cobertura | `./gradlew jacocoTestReport` (corre siempre, incluso si tests fallan) |
+| SonarCloud | Análisis de calidad + cobertura (requiere `SONAR_TOKEN` en GitHub Secrets) |
+| Artefactos | JaCoCo XML + resultados de tests, retención 7 días |
 
-### Variables de entorno del pipeline
+### Entorno de CI
 
-Las siguientes variables están hardcodeadas en el workflow solo para el entorno de CI:
+Las siguientes variables están hardcodeadas en el workflow para el entorno de CI (no son claves de producción):
 
 | Variable | Propósito |
 |----------|-----------|
 | `APP_JWT_SECRET` | Secret de desarrollo para firmar JWT en tests |
 | `APP_CRYPTO_ENCRYPTION_KEY_BASE64` | Clave AES-256 de desarrollo |
 | `APP_CRYPTO_HASH_KEY_BASE64` | Clave HMAC de desarrollo |
-| `TESTCONTAINERS_RYUK_DISABLED` | Deshabilita el proceso de limpieza de Testcontainers en CI |
+| `TESTCONTAINERS_RYUK_DISABLED=true` | Deshabilita limpieza de Testcontainers en CI |
 
-### Implicancias
+### SonarCloud
 
-- Un PR a `main` que rompa cualquier test (incluyendo los de ArchUnit) **no puede mergearse** si el repositorio tiene protección de ramas activa.
-- El reporte de cobertura Jacoco queda disponible como artefacto del run en GitHub Actions.
+Proyecto: `crediscan-backend` (organización `crediscan-udea-fabricaescuela`). Configurado para excluir reglas Oracle/PLSQL en migraciones Flyway (el proyecto usa PostgreSQL).
 
 ---
 
 ## 13. Configuración
 
-### Ejecución con Docker (recomendado para desarrollo)
+### Perfiles
 
-```bash
-# 1. Copiar el archivo de variables de entorno
-cp .env.example .env
-
-# 2. Levantar la app + PostgreSQL
-docker compose up --build -d
-
-# 3. Verificar que todo esté corriendo
-curl http://localhost:8080/actuator/health
-# → {"status":"UP"}
-
-# 4. Swagger UI disponible en:
-# http://localhost:8080/swagger-ui.html
-```
-
-```bash
-# Bajar los contenedores
-docker compose down
-
-# Bajar y borrar la base de datos (volumen)
-docker compose down -v
-```
-
-### Variables de entorno
-
-| Variable | Descripción | Default en `.env.example` |
-|----------|-------------|---------------------------|
-| `APP_JWT_SECRET` | Secret para firmar JWT (base64, ≥32 bytes) | valor de desarrollo |
-| `APP_JWT_EXPIRATION_MS` | Duración del token en ms | `86400000` (1 día) |
-| `APP_CRYPTO_ENCRYPTION_KEY_BASE64` | Clave AES-256 para encriptar (32 bytes, base64) | valor de desarrollo |
-| `APP_CRYPTO_HASH_KEY_BASE64` | Clave HMAC-SHA256 (32 bytes, base64) | valor de desarrollo |
-| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos por CORS (separados por coma) | localhost 3000/4200/5173 |
-| `DB_NAME` | Nombre de la base de datos | `credit_scoring` |
-| `DB_USERNAME` | Usuario de PostgreSQL | `postgres` |
-| `DB_PASSWORD` | Contraseña de PostgreSQL | `postgres` |
-| `APP_PORT` | Puerto expuesto de la app | `8080` |
+| Perfil | Cuándo se usa | Configurado en |
+|--------|---------------|----------------|
+| `dev` | Desarrollo local | `application-dev.yml` |
+| `test` | Tests con Testcontainers | `application-test.yml` |
+| `prod` | Producción (Render.com) | Variables de entorno |
 
 ### `application.yml` — propiedades clave
 
@@ -1328,9 +1001,16 @@ spring:
   data:
     web:
       pageable:
-        serialization-mode: via-dto   # Formato Spring Data 3.3+: page metadata bajo clave "page"
+        serialization-mode: via-dto   # Formato Spring Data 3.3+: metadata bajo clave "page"
+  mvc:
+    problemdetails:
+      enabled: true                   # RFC 7807 Problem Details
 
 app:
+  evaluation:
+    cooldown-hours: ${APP_EVALUATION_COOLDOWN_HOURS:24}
+  reporting:
+    business-timezone: ${APP_REPORTING_BUSINESS_TIMEZONE:America/Bogota}
   security:
     jwt:
       secret: ${APP_JWT_SECRET}
@@ -1338,202 +1018,44 @@ app:
     crypto:
       encryption-key-base64: ${APP_CRYPTO_ENCRYPTION_KEY_BASE64}
       hash-key-base64: ${APP_CRYPTO_HASH_KEY_BASE64}
+```
 
-cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4200,http://localhost:5173}
+### `application-dev.yml`
+
+```yaml
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/credit_scoring_dev}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:#{null}}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
 ```
 
 ### Beans de configuración
 
 | Clase | Propósito |
 |-------|-----------|
-| `SecurityConfig` | Spring Security: filtro JWT, autenticación, endpoints públicos |
-| `JwtProperties` | Bind de `app.security.jwt.*` a objeto Java |
-| `CryptoProperties` | Bind de `app.security.crypto.*` a objeto Java |
-| `JpaAuditingConfig` | Habilita auditoría automática JPA (`@CreatedDate`, `@CreatedBy`, etc.) |
-| `CorsConfig` | CORS: orígenes leídos de `CORS_ALLOWED_ORIGINS` |
-| `OpenApiConfig` | Configuración de Swagger/SpringDoc |
+| `SecurityConfig` | Spring Security: filtro JWT, endpoints públicos, CSRF deshabilitado |
+| `JwtProperties` | Bind de `app.security.jwt.*` |
+| `CryptoProperties` | Bind de `app.security.crypto.*` |
+| `JpaAuditingConfig` | Habilita `@CreatedDate`, `@CreatedBy`, `@LastModifiedDate`, `@LastModifiedBy` |
+| `CorsConfig` | CORS leído de `CORS_ALLOWED_ORIGINS` |
+| `OpenApiConfig` | Swagger con autenticación Bearer JWT |
 
 ---
 
-## 14. Cómo implementar un nuevo módulo
-
-Seguí este orden. No saltees pasos.
-
-### Paso 1 — Definí el modelo de dominio
-
-En `<bounded-context>/domain/model/`, creá el modelo como `record` si es inmutable.
-
-```java
-public record NewEntity(UUID id, UUID applicantId, String someField) {
-    public static NewEntity registerNew(UUID applicantId, String someField) {
-        // validaciones de dominio acá — lanzar DomainException si falla
-        if (someField == null || someField.isBlank()) {
-            throw new NewEntityValidationException("someField is required");
-        }
-        return new NewEntity(UUID.randomUUID(), applicantId, someField);
-    }
-}
-```
-
-### Paso 2 — Definí las excepciones de dominio
-
-En `<bounded-context>/domain/exception/`, extendé `DomainException`:
-
-```java
-public class NewEntityValidationException extends DomainException {
-    public NewEntityValidationException(String message) { super(message); }
-    @Override public int httpStatusCode() { return 400; }
-    @Override public String errorCode() { return "NEW_ENTITY_VALIDATION_FAILED"; }
-}
-```
-
-No hay que tocar `GlobalExceptionHandler`. El handler ya lo maneja via polimorfismo.
-
-### Paso 3 — Definí los puertos
-
-**Puerto IN** (`domain/port/in/`):
-
-```java
-public interface RegisterNewEntityUseCase {
-    NewEntity register(RegisterNewEntityCommand command);
-}
-```
-
-**Puertos OUT** (`domain/port/out/`) — usá `PagedResult`/`PageRequest` para paginación:
-
-```java
-public interface NewEntityRepositoryPort {
-    NewEntity save(NewEntity entity);
-    Optional<NewEntity> findById(UUID id);
-    PagedResult<NewEntity> findAll(PageRequest pageRequest);
-}
-```
-
-### Paso 4 — Implementá el servicio de aplicación
-
-En `application/service/`. El `@Transactional` va acá, no en el adaptador.
-
-```java
-@Service
-@Transactional
-public class RegisterNewEntityService implements RegisterNewEntityUseCase {
-    private final NewEntityRepositoryPort repository;
-
-    public RegisterNewEntityService(NewEntityRepositoryPort repository) {
-        this.repository = repository;
-    }
-
-    @Override
-    public NewEntity register(RegisterNewEntityCommand command) {
-        NewEntity entity = NewEntity.registerNew(command.applicantId(), command.someField());
-        return repository.save(entity);
-    }
-}
-```
-
-### Paso 5 — Implementá los adaptadores de infraestructura
-
-**Adaptador OUT (persistencia):**
-
-```java
-@Component
-public class NewEntityRepositoryAdapter implements NewEntityRepositoryPort {
-    private final JpaNewEntityRepository jpaRepository;
-    // SIN @Transactional acá
-
-    @Override
-    public PagedResult<NewEntity> findAll(PageRequest pageRequest) {
-        var pageable = org.springframework.data.domain.PageRequest.of(
-                pageRequest.page(), pageRequest.size());
-        var page = jpaRepository.findAll(pageable);
-        return new PagedResult<>(page.getContent().stream().map(this::toDomain).toList(),
-                page.getTotalElements(), page.getTotalPages(),
-                page.getNumber(), page.getSize());
-    }
-}
-```
-
-**Adaptador IN (REST):**
-
-```java
-@RestController
-@RequestMapping("/api/v1/new-entities")
-public class NewEntityController {
-    private final RegisterNewEntityUseCase registerUseCase;
-
-    @PostMapping
-    @PreAuthorize("hasRole('ANALYST') or hasRole('ADMIN')")
-    public ResponseEntity<NewEntityResponse> register(
-            @Valid @RequestBody RegisterNewEntityRequest request) {
-        // ...
-    }
-}
-```
-
-### Paso 6 — Escribí tests
-
-Mínimo esperado:
-- **Unit test** para el servicio de aplicación (mockear puertos OUT)
-- **Integration test** con Testcontainers para el flujo completo
-
-```java
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-@Testcontainers
-class NewEntityIT {
-
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    @Test
-    @WithMockUser(roles = "ANALYST")
-    void shouldRegisterNewEntity() throws Exception {
-        // ...
-    }
-}
-```
-
-### Paso 7 — Agregá la migración de Flyway
-
-Si necesitás una tabla nueva, creá `V{siguiente_número}__descripcion_breve.sql` en `src/main/resources/db/migration/`.
-
-```sql
-CREATE TABLE new_entity (
-    id UUID PRIMARY KEY,
-    applicant_id UUID NOT NULL REFERENCES applicant(id),
-    some_field VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_by VARCHAR(100) NOT NULL
-);
-```
-
-### Checklist antes de hacer PR
-
-- [ ] Dominio sin imports de Spring / JPA / infraestructura
-- [ ] Excepciones de dominio extienden `DomainException` con `httpStatusCode()` y `errorCode()` correctos
-- [ ] Puertos IN y OUT definidos como interfaces en `domain/port/`
-- [ ] Puertos OUT de paginación usan `PagedResult` / `PageRequest` (no Spring Data)
-- [ ] `@Transactional` en el servicio de aplicación, no en los adaptadores
-- [ ] Adaptadores en `infrastructure/adapter/in` y `out`
-- [ ] Controller con `@PreAuthorize` con los roles correctos
-- [ ] Unit test para el servicio
-- [ ] Integration test con Testcontainers
-- [ ] Migración Flyway si hay cambios de esquema
-- [ ] `./gradlew test` pasa (incluyendo ArchUnit)
-
----
-
-## 15. Observabilidad
+## 14. Observabilidad
 
 ### Logs
 
-Todos los logs salen en JSON (Logstash format). Cada request incluye un `traceId` en el MDC.
+Todos los logs salen en JSON (Logstash format). Cada request incluye un `traceId` en el MDC (inyectado por `MdcFilter`):
 
 ```json
 {
-  "@timestamp": "2026-03-31T10:30:45.123Z",
+  "@timestamp": "2026-05-22T10:30:45.123Z",
   "level": "INFO",
   "logger_name": "co.udea...RegisterApplicantService",
   "message": "Applicant registered successfully",
@@ -1548,66 +1070,198 @@ Disponibles en `/actuator/prometheus`. Métricas custom:
 - `applicant.registration.success` — contador de registros exitosos
 - `applicant.registration.failure[reason]` — contador de fallos por tipo
 
+Endpoints de actuator expuestos: `health`, `info`, `prometheus`, `metrics`.
+
 ### Auditoría
 
-- **JPA Auditing**: `created_at`, `created_by`, `updated_at`, `updated_by` en cada entidad automáticamente
-- **audit_log**: tabla para auditoría de operaciones críticas (cambios de rol, login, etc.)
-- **authentication_log**: cada intento de login registrado
+- **JPA Auditing:** `created_at`, `created_by`, `updated_at`, `updated_by` en cada entidad via `AuditableEntity` (`@MappedSuperclass`).
+- **audit_log:** tabla para auditoría de operaciones críticas (cambios de rol, login, etc.). Consultable vía `GET /api/v1/auditoria`.
+- **authentication_log:** cada intento de login registrado.
+
+---
+
+## 15. Cómo implementar un nuevo módulo
+
+Seguir este orden. No saltear pasos.
+
+### Paso 1 — Modelo de dominio
+
+En `<bounded-context>/domain/model/`, crear el modelo como `record` si es inmutable:
+
+```java
+public record NewEntity(UUID id, UUID applicantId, String someField) {
+    public static NewEntity registerNew(UUID applicantId, String someField) {
+        if (someField == null || someField.isBlank()) {
+            throw new NewEntityValidationException("someField is required");
+        }
+        return new NewEntity(UUID.randomUUID(), applicantId, someField);
+    }
+}
+```
+
+### Paso 2 — Excepciones de dominio
+
+En `<bounded-context>/domain/exception/`, extender `DomainException`:
+
+```java
+public class NewEntityValidationException extends DomainException {
+    public NewEntityValidationException(String message) { super(message); }
+    @Override public int httpStatusCode() { return 400; }
+    @Override public String errorCode() { return "NEW_ENTITY_VALIDATION_FAILED"; }
+}
+```
+
+No hay que tocar `GlobalExceptionHandler`.
+
+### Paso 3 — Puertos
+
+**Puerto IN** (`domain/port/in/`):
+```java
+public interface RegisterNewEntityUseCase {
+    NewEntity register(RegisterNewEntityCommand command);
+}
+```
+
+**Puertos OUT** (`domain/port/out/`):
+```java
+public interface NewEntityRepositoryPort {
+    NewEntity save(NewEntity entity);
+    Optional<NewEntity> findById(UUID id);
+    PagedResult<NewEntity> findAll(PageRequest pageRequest);
+}
+```
+
+### Paso 4 — Servicio de aplicación
+
+```java
+@Service
+@Transactional  // ← acá, no en el adaptador
+public class RegisterNewEntityService implements RegisterNewEntityUseCase {
+    private final NewEntityRepositoryPort repository;
+    // inyección por constructor
+}
+```
+
+### Paso 5 — Adaptadores de infraestructura
+
+**Adaptador OUT (persistencia):** `@Component`, sin `@Transactional`. Convierte entre el modelo de dominio y la JPA entity. Convierte `PageRequest`/`PagedResult` ↔ `Pageable`/`Page`.
+
+**Adaptador IN (REST):** `@RestController`, `@RequestMapping("/api/v1/new-entities")`, con `@PreAuthorize` en cada operación.
+
+### Paso 6 — Tests
+
+Mínimo esperado:
+- Unit test del servicio (mockear puertos OUT con Mockito)
+- Integration test con Testcontainers: `@SpringBootTest`, `@ActiveProfiles("test")`, `@Testcontainers` con `PostgreSQLContainer`
+
+### Paso 7 — Migración Flyway
+
+Si se necesita tabla nueva: `V{siguiente_número}__descripcion_breve.sql` en `src/main/resources/db/migration/`.
+
+```sql
+CREATE TABLE new_entity (
+    id UUID PRIMARY KEY,
+    applicant_id UUID NOT NULL REFERENCES applicant(id),
+    some_field VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_by VARCHAR(100) NOT NULL
+);
+```
+
+### Checklist antes de hacer PR
+
+- [ ] Dominio sin imports de Spring / JPA / infraestructura
+- [ ] Excepciones de dominio extienden `DomainException` con `httpStatusCode()` y `errorCode()`
+- [ ] Puertos IN y OUT como interfaces en `domain/port/`
+- [ ] Paginación usando `PagedResult` / `PageRequest` (no Spring Data)
+- [ ] `@Transactional` en el servicio de aplicación, no en los adaptadores
+- [ ] Adaptadores en `infrastructure/adapter/in` y `out`
+- [ ] Controller con `@PreAuthorize` con los roles correctos
+- [ ] Unit test del servicio
+- [ ] Integration test con Testcontainers
+- [ ] Migración Flyway si hay cambios de esquema
+- [ ] `./gradlew test` pasa (incluyendo ArchUnit)
 
 ---
 
 ## 16. ADRs — Decisiones de Arquitectura
 
-### ADR-001: Arquitectura Hexagonal con módulos por Bounded Context
+### ADR-001: Arquitectura Hexagonal con módulos por Bounded Context (Screaming Architecture)
 
-**Contexto:** El sistema tiene múltiples dominios de negocio independientes (solicitantes, scoring, evaluación, etc.) con reglas de negocio propias.
+**Contexto:** El sistema tiene múltiples dominios de negocio independientes (solicitantes, scoring, evaluación, reportes, etc.) con reglas de negocio propias.
 
-**Decisión:** Se adopta Arquitectura Hexagonal (Ports & Adapters) organizada por Bounded Context. Cada contexto tiene sus propias capas `domain`, `application` e `infrastructure`. No hay capas horizontales compartidas (no hay un único `repository/` global).
+**Decisión:** Se adopta Arquitectura Hexagonal (Ports & Adapters) organizada por Bounded Context. Cada contexto tiene sus propias capas `domain`, `application` e `infrastructure`. No hay capas horizontales compartidas (no existe un único `repository/` o `service/` global).
 
 **Consecuencias:**
 - El dominio es independiente de frameworks y puede testearse sin Spring.
 - Agregar un nuevo bounded context no requiere tocar los existentes.
-- Los adaptadores pueden reemplazarse (ej: cambiar JPA por otro ORM) sin modificar el dominio ni la aplicación.
-- Costo: más archivos y estructuras que una arquitectura en capas tradicional.
+- Los adaptadores pueden reemplazarse sin modificar el dominio ni la aplicación.
+- Costo: más archivos y estructura que una arquitectura en capas tradicional.
 
 ---
 
 ### ADR-002: DomainException como clase abstracta para manejo de errores (OCP)
 
-**Contexto:** El `GlobalExceptionHandler` necesita manejar excepciones de todos los módulos sin importarlos directamente. Si por cada módulo nuevo se agregaba un `@ExceptionHandler` específico, el handler violaba el Principio Abierto/Cerrado.
+**Contexto:** El `GlobalExceptionHandler` necesita manejar excepciones de todos los módulos sin importarlos directamente.
 
-**Decisión:** Se introduce `DomainException` como clase abstracta con métodos `httpStatusCode()` y `errorCode()`. Todas las excepciones de dominio la extienden y sobreescriben esos métodos. El handler tiene un único `@ExceptionHandler(DomainException.class)` que delega en el polimorfismo.
+**Decisión:** `DomainException` abstracta con métodos `httpStatusCode()` y `errorCode()`. El handler tiene un único `@ExceptionHandler(DomainException.class)` que delega en polimorfismo.
 
 **Consecuencias:**
-- Agregar un nuevo módulo con nuevas excepciones no requiere modificar `GlobalExceptionHandler`.
-- El contrato de error (código HTTP + errorCode) vive en la excepción misma, cerca de donde se lanza.
-- Las excepciones de dominio siguen siendo Java puro (no dependen de Spring ni HTTP).
+- Agregar un módulo nuevo con nuevas excepciones no requiere modificar el handler.
+- El contrato de error vive en la excepción misma, cerca de donde se lanza.
+- Las excepciones de dominio son Java puro, sin dependencias de Spring.
 
 ---
 
 ### ADR-003: PagedResult / PageRequest para desacoplar el dominio de Spring Data
 
-**Contexto:** Los puertos de dominio originalmente usaban `org.springframework.data.domain.Page` y `Pageable`. Esto violaba la regla de que el dominio no depende de frameworks.
+**Contexto:** Los puertos de dominio originalmente usaban `org.springframework.data.domain.Page` y `Pageable`, violando la independencia del dominio.
 
-**Decisión:** Se crean `PagedResult<T>` y `PageRequest` como records Java puros en el paquete `shared`. Los puertos de dominio usan estos tipos. Los adaptadores de infraestructura convierten entre ellos y los tipos de Spring Data.
+**Decisión:** Records Java puros `PagedResult<T>` y `PageRequest` en `shared`. Los adaptadores hacen la conversión.
 
 **Consecuencias:**
 - El dominio no importa ninguna clase de Spring Data.
-- Si se cambia Spring Data por otro mecanismo de acceso a datos, los puertos no cambian.
-- Costo mínimo: cada adaptador hace la conversión (pocas líneas).
+- Cambiar el mecanismo de acceso a datos no requiere modificar los puertos.
+- Costo mínimo: conversión en cada adaptador (pocas líneas).
 
 ---
 
 ### ADR-004: @Transactional solo en servicios de aplicación
 
-**Contexto:** En versiones anteriores, algunos adaptadores de infraestructura (`TokenBlacklistAdapter`, `AuditLogAdapter`, `AppUserRepositoryAdapter`) tenían `@Transactional`. Esto generaba transacciones anidadas y dificultaba razonar sobre los límites transaccionales.
+**Contexto:** Adaptadores con `@Transactional` generaban transacciones anidadas y dificultaban razonar sobre los límites transaccionales.
 
-**Decisión:** `@Transactional` se coloca exclusivamente en los servicios de aplicación. Los adaptadores de infraestructura no gestionan transacciones propias. La transacción abarca la unidad de trabajo completa del caso de uso.
+**Decisión:** `@Transactional` exclusivamente en servicios de aplicación. Los adaptadores son stateless respecto a transacciones.
 
 **Consecuencias:**
-- Hay un único límite transaccional por caso de uso, fácil de razonar.
+- Un único límite transaccional por caso de uso.
 - El rollback ocurre a nivel del caso de uso completo, no por operación individual.
-- Los adaptadores son stateless respecto a transacciones: no pueden confirmar parcialmente.
+- Los adaptadores no pueden confirmar parcialmente.
+
+---
+
+### ADR-005: Queries JPA nativas/JPQL de agregación para reportes analíticos
+
+**Contexto:** Los reportes HU-015, HU-016 y HU-017 requieren agregaciones complejas sobre múltiples tablas con filtros dinámicos.
+
+**Decisión:** Se usan queries JPQL o JPA nativas directamente en los repositorios de `reporting/infrastructure/adapter/out/persistence/`. No hay tablas de reporte propias ni materializadas. Los índices V30–V32 garantizan performance aceptable en el volumen esperado.
+
+**Consecuencias:**
+- Sin overhead de sincronización de datos.
+- Reportes siempre sobre datos actuales (no lag).
+- Costo: las queries son más complejas y requieren índices explícitos.
+
+---
+
+### ADR-006: BusinessHoursCalculator y OutlierDetector como componentes de dominio de aplicación
+
+**Contexto:** HU-017 requiere calcular horas hábiles (L-V 08:00–18:00 zona horaria configurable) y detectar analistas outliers (±2σ).
+
+**Decisión:** `BusinessHoursCalculator` y `OutlierDetector` viven en `reporting/application/util/`. Son Java puro, sin dependencias de infraestructura, con la zona horaria leída desde configuración (`APP_REPORTING_BUSINESS_TIMEZONE`, default `America/Bogota`).
+
+**Consecuencias:**
+- Testables de forma unitaria sin Spring context.
+- La zona horaria es configurable por entorno sin recompilar.
+- La detección de outliers ±2σ es determinista y documentada.
 
 ---
 
