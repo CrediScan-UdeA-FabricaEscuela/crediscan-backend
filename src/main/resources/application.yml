@@ -72,6 +72,8 @@ app:
   evaluation:
     cooldown-hours: ${APP_EVALUATION_COOLDOWN_HOURS:24}
     default-range-days: 90
+  reporting:
+    business-timezone: ${APP_REPORTING_BUSINESS_TIMEZONE:America/Bogota}
   security:
     jwt:
       secret: ${APP_JWT_SECRET}
