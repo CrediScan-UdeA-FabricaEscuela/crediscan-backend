@@ -24,7 +24,6 @@ import co.udea.codefactory.creditscoring.scoring.application.dto.VariableCategor
 import co.udea.codefactory.creditscoring.scoring.application.dto.VariableRangeRequest;
 import co.udea.codefactory.creditscoring.scoring.domain.exception.ScoringVariableValidationException;
 import co.udea.codefactory.creditscoring.scoring.domain.model.ScoringVariable;
-import co.udea.codefactory.creditscoring.scoring.domain.model.VariableCategory;
 import co.udea.codefactory.creditscoring.scoring.domain.model.VariableRange;
 import co.udea.codefactory.creditscoring.scoring.domain.model.VariableType;
 import co.udea.codefactory.creditscoring.scoring.domain.port.out.ScoringVariableRepositoryPort;
@@ -194,11 +193,4 @@ class ScoringVariableCommandServiceTest {
                 new BigDecimal("0.30"), true, rangos, List.of());
     }
 
-    private ScoringVariable variableCategorica(String nombre) {
-        List<VariableCategory> categorias = List.of(
-                new VariableCategory(UUID.randomUUID(), VARIABLE_ID, "Empleado", 80, null));
-        return ScoringVariable.rehydrate(
-                VARIABLE_ID, nombre, "Descripción", VariableType.CATEGORICAL,
-                new BigDecimal("0.20"), true, List.of(), categorias);
-    }
 }

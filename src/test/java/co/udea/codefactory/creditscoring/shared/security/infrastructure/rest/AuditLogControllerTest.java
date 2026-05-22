@@ -41,7 +41,7 @@ class AuditLogControllerTest {
 
     @Test
     void searchAuditLogs_asAdmin_returnsPagedResults() {
-        AuditLogRecord record = new AuditLogRecord(
+        AuditLogRecord auditRecord = new AuditLogRecord(
                 UUID.randomUUID(),
                 Instant.parse("2026-04-07T12:00:00Z"),
                 "USER",
@@ -54,7 +54,7 @@ class AuditLogControllerTest {
                 "{\"username\":\"admin\"}",
                 null);
         // Resultado paginado usando tipos de dominio
-        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(record), 1L, 1, 0, 50);
+        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(auditRecord), 1L, 1, 0, 50);
         when(getAuditLogsUseCase.search(any(AuditLogFilter.class), any(PageRequest.class))).thenReturn(pagedResult);
 
         Authentication auth = new UsernamePasswordAuthenticationToken("admin", null,
@@ -78,7 +78,7 @@ class AuditLogControllerTest {
 
     @Test
     void exportAuditLogs_asAnalyst_forcesActorScope() {
-        AuditLogRecord record = new AuditLogRecord(
+        AuditLogRecord auditRecord = new AuditLogRecord(
                 UUID.randomUUID(),
                 Instant.parse("2026-04-07T12:00:00Z"),
                 "USER",
@@ -90,7 +90,7 @@ class AuditLogControllerTest {
                 null,
                 null,
                 null);
-        when(getAuditLogsUseCase.export(any(AuditLogFilter.class))).thenReturn(List.of(record));
+        when(getAuditLogsUseCase.export(any(AuditLogFilter.class))).thenReturn(List.of(auditRecord));
 
         Authentication auth = new UsernamePasswordAuthenticationToken("analyst", null,
                 List.of(new SimpleGrantedAuthority("ROLE_ANALYST")));

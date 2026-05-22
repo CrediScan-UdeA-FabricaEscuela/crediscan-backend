@@ -11,15 +11,15 @@ import org.junit.jupiter.api.Test;
 
 class SimulationScenarioTest {
 
-    private final UUID MODELO_ID = UUID.randomUUID();
+    private final UUID modeloId = UUID.randomUUID();
 
     @Test
     void crear_conDatosValidos_retornaEscenario() {
         SimulationScenario escenario = SimulationScenario.crear(
-                MODELO_ID, "Escenario A", "Descripción", Map.of("moras_12_meses", BigDecimal.ONE), "user");
+                modeloId, "Escenario A", "Descripción", Map.of("moras_12_meses", BigDecimal.ONE), "user");
 
         assertThat(escenario.id()).isNotNull();
-        assertThat(escenario.modeloId()).isEqualTo(MODELO_ID);
+        assertThat(escenario.modeloId()).isEqualTo(modeloId);
         assertThat(escenario.nombre()).isEqualTo("Escenario A");
         assertThat(escenario.valoresVariables()).containsKey("moras_12_meses");
         assertThat(escenario.fechaCreacion()).isNotNull();
@@ -36,7 +36,7 @@ class SimulationScenarioTest {
     @Test
     void crear_sinNombre_lanzaIllegalArgumentException() {
         assertThatThrownBy(() -> SimulationScenario.crear(
-                MODELO_ID, "", "Desc", Map.of("campo", BigDecimal.ONE), "user"))
+                modeloId, "", "Desc", Map.of("campo", BigDecimal.ONE), "user"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("nombre");
     }
@@ -44,7 +44,7 @@ class SimulationScenarioTest {
     @Test
     void crear_sinValores_lanzaIllegalArgumentException() {
         assertThatThrownBy(() -> SimulationScenario.crear(
-                MODELO_ID, "Escenario", "Desc", Map.of(), "user"))
+                modeloId, "Escenario", "Desc", Map.of(), "user"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("valor");
     }
@@ -52,7 +52,7 @@ class SimulationScenarioTest {
     @Test
     void valoresVariables_esInmutable() {
         SimulationScenario escenario = SimulationScenario.crear(
-                MODELO_ID, "Test", null, Map.of("moras_12_meses", BigDecimal.TEN), "user");
+                modeloId, "Test", null, Map.of("moras_12_meses", BigDecimal.TEN), "user");
 
         assertThatThrownBy(() -> escenario.valoresVariables().put("extra", BigDecimal.ONE))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -64,7 +64,7 @@ class SimulationScenarioTest {
         Map<String, BigDecimal> valores = Map.of("score_buro", new BigDecimal("720"));
 
         SimulationScenario escenario = SimulationScenario.rehydrate(
-                id, MODELO_ID, "Rehydrated", "Desc", valores,
+                id, modeloId, "Rehydrated", "Desc", valores,
                 java.time.OffsetDateTime.now(), "test_user");
 
         assertThat(escenario.id()).isEqualTo(id);

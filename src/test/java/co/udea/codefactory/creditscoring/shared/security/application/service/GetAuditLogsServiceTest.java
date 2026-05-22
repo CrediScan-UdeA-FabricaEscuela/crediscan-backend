@@ -36,7 +36,7 @@ class GetAuditLogsServiceTest {
 
     @Test
     void search_delegatesToQueryPort() {
-        AuditLogRecord record = new AuditLogRecord(
+        AuditLogRecord auditRecord = new AuditLogRecord(
                 UUID.randomUUID(),
                 Instant.parse("2026-04-07T12:00:00Z"),
                 "USER",
@@ -49,7 +49,7 @@ class GetAuditLogsServiceTest {
                 null,
                 null);
         // Resultado paginado usando tipos de dominio en lugar de Spring Page
-        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(record), 1L, 1, 0, 50);
+        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(auditRecord), 1L, 1, 0, 50);
         when(auditLogQueryPort.search(any(AuditLogFilter.class), any(PageRequest.class))).thenReturn(pagedResult);
 
         PagedResult<AuditLogRecord> result = service.search(
@@ -62,7 +62,7 @@ class GetAuditLogsServiceTest {
 
     @Test
     void export_delegatesToQueryPortWithSizeLimit() {
-        AuditLogRecord record = new AuditLogRecord(
+        AuditLogRecord auditRecord = new AuditLogRecord(
                 UUID.randomUUID(),
                 Instant.parse("2026-04-07T12:00:00Z"),
                 "USER",
@@ -74,7 +74,7 @@ class GetAuditLogsServiceTest {
                 null,
                 null,
                 null);
-        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(record), 1L, 1, 0, GetAuditLogsService.MAX_EXPORT_SIZE);
+        PagedResult<AuditLogRecord> pagedResult = new PagedResult<>(List.of(auditRecord), 1L, 1, 0, GetAuditLogsService.MAX_EXPORT_SIZE);
         when(auditLogQueryPort.search(any(AuditLogFilter.class), any(PageRequest.class))).thenReturn(pagedResult);
 
         List<AuditLogRecord> result = service.export(new AuditLogFilter(null, null, null, null, null, null, null));

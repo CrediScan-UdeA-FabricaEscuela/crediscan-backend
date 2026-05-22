@@ -65,7 +65,7 @@ class TokenBlacklistFlowIT {
         // Generate a JWT for this user
         AppUser testUser = new AppUser(TEST_USER_ID, "testanalyst", "testanalyst@test.local",
                 "$2a$10$hash", Role.ANALYST, true, false);
-        String oldToken = jwtService.generateToken(testUser);
+        jwtService.generateToken(testUser);
 
         // Perform role change as admin (using user() test support)
         mockMvc.perform(patch("/api/v1/auth/usuarios/" + TEST_USER_ID + "/rol")

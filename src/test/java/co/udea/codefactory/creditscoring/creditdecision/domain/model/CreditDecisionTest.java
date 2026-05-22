@@ -16,6 +16,41 @@ class CreditDecisionTest {
     private static final String ANALYST = "analista";
     private static final String VALID_OBSERVATIONS = "Esta es una observación válida con más de veinte caracteres";
 
+    @Test
+    @DisplayName("crear() con ESCALATED debe asignar deadline de 48h")
+    void crear_escalated_asignaDeadline48h() {
+        CreditDecision decision = CreditDecision.crear(
+                EVALUATION_ID, DecisionStatus.ESCALATED, VALID_OBSERVATIONS, ANALYST);
+
+        assertThat(decision.resolutionDeadlineAt()).isNotNull();
+        assertThat(decision.resolutionDeadlineAt())
+                .isAfterOrEqualTo(decision.decidedAt().plusHours(47))
+                .isBeforeOrEqualTo(decision.decidedAt().plusHours(49));
+    }
+
+    @Test
+    @DisplayName("crear() con estado no-ESCALATED no debe asignar deadline")
+    void crear_noEscalated_noAsignaDeadline() {
+        CreditDecision approved = CreditDecision.crear(
+                EVALUATION_ID, DecisionStatus.APPROVED, VALID_OBSERVATIONS, ANALYST);
+        CreditDecision rejected = CreditDecision.crear(
+                EVALUATION_ID, DecisionStatus.REJECTED, VALID_OBSERVATIONS, ANALYST);
+
+        assertThat(approved.resolutionDeadlineAt()).isNull();
+        assertThat(rejected.resolutionDeadlineAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("crear() debe generar un id único por cada llamada")
+    void crear_generaIdUnicoPorLlamada() {
+        CreditDecision d1 = CreditDecision.crear(
+                EVALUATION_ID, DecisionStatus.APPROVED, VALID_OBSERVATIONS, ANALYST);
+        CreditDecision d2 = CreditDecision.crear(
+                EVALUATION_ID, DecisionStatus.APPROVED, VALID_OBSERVATIONS, ANALYST);
+
+        assertThat(d1.id()).isNotEqualTo(d2.id());
+    }
+
     @Nested
     @DisplayName("Factory method crear()")
     class Create {

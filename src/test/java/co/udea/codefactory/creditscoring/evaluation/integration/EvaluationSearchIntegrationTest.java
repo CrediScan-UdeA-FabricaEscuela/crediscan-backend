@@ -172,7 +172,7 @@ class EvaluationSearchIntegrationTest {
         String modeloId = crearYActivarModelo("Modelo Sin Dec");
         String aplicanteId = crearAplicante("Sin Decision Test", "9990002");
         crearDatosFinancieros(aplicanteId, 0);
-        String evalId = crearEvaluacion(aplicanteId, modeloId, "analista1");
+        crearEvaluacion(aplicanteId, modeloId, "analista1");
 
         // Crear segunda evaluación con decisión
         String apId2 = crearAplicante("Con Decision Test", "9990003");

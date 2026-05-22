@@ -94,8 +94,6 @@ class EvaluationComparisonIntegrationTest {
 
     @Test
     void comparar_rutaComparar_noColisionaConOtrasRutas() throws Exception {
-        // /evaluaciones/comparar debe resolverce antes que /{id}
-        // Verificamos que el endpoint clasificacion también funciona en el mismo controller
         mockMvc.perform(get(BASE_URL + "/clasificacion")
                         .with(user("admin").roles("ADMIN")))
                 .andExpect(status().isOk());

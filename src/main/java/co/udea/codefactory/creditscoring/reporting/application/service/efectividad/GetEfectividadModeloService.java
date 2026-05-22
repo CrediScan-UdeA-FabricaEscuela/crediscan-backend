@@ -102,26 +102,31 @@ public class GetEfectividadModeloService implements GetEfectividadModeloUseCase 
         }
 
         for (MatrizAggregate agg : raw) {
-            RiskLevel riskLevel;
-            try {
-                riskLevel = RiskLevel.valueOf(agg.riskLevel());
-            } catch (IllegalArgumentException e) {
-                continue; // ignora valores desconocidos
-            }
-            // Decisión bloqueada #5: REJECTED se agrupa bajo VERY_HIGH
-            RiskLevel efectivo = ConcordanceClassifier.effectiveLevel(riskLevel);
-
-            DecisionStatus decision;
-            try {
-                decision = DecisionStatus.valueOf(agg.decision());
-            } catch (IllegalArgumentException e) {
-                continue;
-            }
-
-            Map<DecisionStatus, Long> decMap = map.get(efectivo);
-            decMap.merge(decision, agg.count(), Long::sum);
+            acumularAggregate(agg, map);
         }
         return map;
+    }
+
+    private void acumularAggregate(
+            MatrizAggregate agg,
+            Map<RiskLevel, Map<DecisionStatus, Long>> map) {
+        RiskLevel riskLevel;
+        try {
+            riskLevel = RiskLevel.valueOf(agg.riskLevel());
+        } catch (IllegalArgumentException e) {
+            return; // ignora valores desconocidos
+        }
+        // Decisión bloqueada #5: REJECTED se agrupa bajo VERY_HIGH
+        RiskLevel efectivo = ConcordanceClassifier.effectiveLevel(riskLevel);
+
+        DecisionStatus decision;
+        try {
+            decision = DecisionStatus.valueOf(agg.decision());
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+
+        map.get(efectivo).merge(decision, agg.count(), Long::sum);
     }
 
     /**

@@ -66,10 +66,6 @@ class MultipleEvaluationsDistributionIntegrationTest {
         String aplicanteId = crearAplicante("7788001122", "Independiente");
         crearDatosFinancieros(aplicanteId);
 
-        // Ejecutar 2 evaluaciones del mismo solicitante
-        // La app tiene cooldown de 24h — necesitamos evitarlo;
-        // si falla la segunda por cooldown, el test verifica que el count es 1
-        // igualmente (la primera evaluación ya es suficiente para el test)
         crearEvaluacion(aplicanteId, modeloId);
 
         // Verificar que el total en el reporte es exactamente 1
