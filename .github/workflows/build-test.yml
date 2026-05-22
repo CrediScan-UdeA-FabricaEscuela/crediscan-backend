@@ -53,6 +53,13 @@ jobs:
         env:
           CI: true
 
+      - name: SonarCloud analysis
+        if: always()
+        run: ./gradlew sonar
+        env:
+          CI: true
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4

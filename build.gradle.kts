@@ -128,8 +128,10 @@ tasks.jacocoTestCoverageVerification {
 // SonarQube configuration
 sonarqube {
     properties {
-        property("sonar.projectKey", "credit-scoring-engine")
-        property("sonar.projectName", "Credit Scoring Engine")
+        property("sonar.projectKey", "CrediScan-UdeA-FabricaEscuela_crediscan-backend")
+        property("sonar.organization", "crediscan-udea-fabricaescuela")
+        property("sonar.host.url", "https://sonarcloud.io")
+        property("sonar.projectName", "crediscan-backend")
         property("sonar.java.coveragePlugin", "jacoco")
         property("sonar.coverage.jacoco.xmlReportPaths", "${layout.buildDirectory}/reports/jacoco/test/jacocoTestReport.xml")
 
