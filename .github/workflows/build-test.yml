@@ -53,6 +53,22 @@ jobs:
         env:
           CI: true
 
+      - name: SonarCloud analysis
+        if: always()
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=CrediScan-UdeA-FabricaEscuela_crediscan-backend
+            -Dsonar.organization=crediscan-udea-fabricaescuela
+            -Dsonar.java.binaries=build/classes/java/main
+            -Dsonar.java.test.binaries=build/classes/java/test
+            -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
+            -Dsonar.sources=src/main/java
+            -Dsonar.tests=src/test/java
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
