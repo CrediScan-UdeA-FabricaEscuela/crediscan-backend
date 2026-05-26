@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
+import co.udea.codefactory.creditscoring.applicant.domain.model.Applicant;
 import co.udea.codefactory.creditscoring.applicant.domain.port.out.ApplicantRepositoryPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.ApplicantQueryPort;
 
