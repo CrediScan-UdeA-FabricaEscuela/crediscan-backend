@@ -40,7 +40,6 @@ class CreditDecisionIntegrationTest {
 
     private UUID evaluationId;
     private String applicantId;
-    private UUID financialDataId;
     private UUID modelId;
 
     @BeforeEach

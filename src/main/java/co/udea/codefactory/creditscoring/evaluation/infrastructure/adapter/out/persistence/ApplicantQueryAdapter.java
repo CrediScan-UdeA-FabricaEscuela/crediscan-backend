@@ -25,6 +25,6 @@ public class ApplicantQueryAdapter implements ApplicantQueryPort {
     @Override
     public Optional<String> findNameById(UUID applicantId) {
         return applicantRepositoryPort.findById(applicantId)
-                .map(applicant -> applicant.name());
+                .map(Applicant::name);
     }
 }
