@@ -2,6 +2,9 @@ server:
   port: ${PORT:8080}
 
 spring:
+  main:
+    lazy-initialization: true
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
