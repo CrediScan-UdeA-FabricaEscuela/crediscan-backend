@@ -89,6 +89,9 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/login").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // Métricas para scrapeo de Prometheus (ServiceMonitor sin credenciales).
+                        // En cluster real, restringir por NetworkPolicy o puerto de management aparte.
+                        .requestMatchers("/actuator/prometheus", "/actuator/metrics").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Scoring variables: escritura restringida a ADMIN y RISK_MANAGER
                         // (duplicado con @PreAuthorize para garantizar rechazo a nivel filtro,

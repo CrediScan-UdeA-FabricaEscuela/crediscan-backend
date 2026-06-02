@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app-deployment
+  namespace: credit-scoring-engine
 spec:
   replicas: 1
   selector:
@@ -15,7 +16,7 @@ spec:
       containers:
         - name: credit-scoring-engine
           image: credit-scoring-engine:latest
-          imagePullPolicy: Never 
+          imagePullPolicy: Never
           ports:
             - containerPort: 8080
           envFrom:
@@ -24,17 +25,54 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
+            # Host de conexión = nombre del Service de postgres (DNS interno del cluster).
+            # El perfil prod exige DB_URL (no tiene default como dev); sin esto el pod
+            # entra en CrashLoopBackOff. El nombre de la BD debe coincidir con DB_NAME.
+            - name: DB_URL
+              value: "jdbc:postgresql://postgres:5432/credit_scoring"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          # Protege el arranque lento: hasta 30x10s = 300s para que la app levante
+          # (incluye los reintentos de Flyway). liveness/readiness no corren hasta
+          # que este probe tenga éxito, así k8s no mata el pod mientras reintenta.
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: app-service
+  namespace: credit-scoring-engine
+  labels:
+    app: app-service # El ServiceMonitor selecciona el Service por esta label
 spec:
-  type: NodePort # Expone el puerto 
+  type: NodePort # Expone el puerto
   selector:
     app: credit-scoring-app
   ports:
     - port: 8080
       targetPort: 8080
-      nodePort: 30001 
+      nodePort: 30001
       name: http-metrics

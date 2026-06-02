@@ -53,7 +53,8 @@ test-output/
 .codex/
 openspec/
 
-# Kubernetes (Orquestamiento)
+# Kubernetes (orquestación)
 .minikube/
-config
+/config
+kubeconfig.yaml
 helm.exe
