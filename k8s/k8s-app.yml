@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: credit-scoring-app
+  template:
+    metadata:
+      labels:
+        app: credit-scoring-app
+    spec:
+      containers:
+        - name: credit-scoring-engine
+          image: credit-scoring-engine:latest
+          imagePullPolicy: Never 
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: app-env-secret
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-service
+spec:
+  type: NodePort # Expone el puerto 
+  selector:
+    app: credit-scoring-app
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30001 
+      name: http-metrics

@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: app-monitor
+  namespace: credit-scoring-engine
+  labels:
+    release: monitoreo 
+spec:
+  selector:
+    matchLabels:
+      app: app-service
+  endpoints:
+  - port: http-metrics
+    path: /actuator/prometheus
