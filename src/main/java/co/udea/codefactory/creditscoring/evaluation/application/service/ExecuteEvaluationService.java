@@ -18,6 +18,7 @@ import co.udea.codefactory.creditscoring.evaluation.domain.model.EvaluationDetai
 import co.udea.codefactory.creditscoring.evaluation.domain.model.EvaluationKnockout;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.RiskLevel;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.in.ExecuteEvaluationUseCase;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.out.ApplicantQueryPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationRepositoryPort;
 import co.udea.codefactory.creditscoring.financialdata.domain.port.out.FinancialDataRepositoryPort;
 import co.udea.codefactory.creditscoring.scoringengine.application.dto.CalculateScoreRequest;
@@ -38,16 +39,19 @@ public class ExecuteEvaluationService implements ExecuteEvaluationUseCase {
     private final CalculateScoreUseCase calculateScoreUseCase;
     private final FinancialDataRepositoryPort financialDataRepository;
     private final EvaluationProperties evaluationProperties;
+    private final ApplicantQueryPort applicantQueryPort;
 
     public ExecuteEvaluationService(
             EvaluationRepositoryPort evaluationRepository,
             CalculateScoreUseCase calculateScoreUseCase,
             FinancialDataRepositoryPort financialDataRepository,
-            EvaluationProperties evaluationProperties) {
+            EvaluationProperties evaluationProperties,
+            ApplicantQueryPort applicantQueryPort) {
         this.evaluationRepository = evaluationRepository;
         this.calculateScoreUseCase = calculateScoreUseCase;
         this.financialDataRepository = financialDataRepository;
         this.evaluationProperties = evaluationProperties;
+        this.applicantQueryPort = applicantQueryPort;
     }
 
     @Override
@@ -57,8 +61,10 @@ public class ExecuteEvaluationService implements ExecuteEvaluationUseCase {
                 .minusHours(evaluationProperties.getCooldownHours());
         if (evaluationRepository.existsByApplicantIdAndEvaluatedAtAfter(
                 command.applicantId(), desde)) {
+            String nombreSolicitante = applicantQueryPort.findNameById(command.applicantId())
+                    .orElseGet(() -> command.applicantId().toString());
             throw new EvaluationCooldownException(
-                    "El solicitante " + command.applicantId()
+                    "El solicitante " + nombreSolicitante
                     + " ya fue evaluado en las últimas "
                     + evaluationProperties.getCooldownHours() + " horas");
         }

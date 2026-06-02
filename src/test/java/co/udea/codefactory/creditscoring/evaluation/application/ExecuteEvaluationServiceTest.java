@@ -28,6 +28,7 @@ import co.udea.codefactory.creditscoring.evaluation.domain.exception.ApplicantNo
 import co.udea.codefactory.creditscoring.evaluation.domain.exception.EvaluationCooldownException;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.Evaluation;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.RiskLevel;
+import co.udea.codefactory.creditscoring.evaluation.domain.port.out.ApplicantQueryPort;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationRepositoryPort;
 import co.udea.codefactory.creditscoring.financialdata.domain.model.FinancialData;
 import co.udea.codefactory.creditscoring.financialdata.domain.port.out.FinancialDataRepositoryPort;
@@ -49,6 +50,7 @@ class ExecuteEvaluationServiceTest {
     @Mock private CalculateScoreUseCase calculateScoreUseCase;
     @Mock private FinancialDataRepositoryPort financialDataRepository;
     @Mock private EvaluationProperties evaluationProperties;
+    @Mock private ApplicantQueryPort applicantQueryPort;
 
     @InjectMocks
     private ExecuteEvaluationService service;
@@ -117,11 +119,14 @@ class ExecuteEvaluationServiceTest {
         when(evaluationProperties.getCooldownHours()).thenReturn(24L);
         when(evaluationRepository.existsByApplicantIdAndEvaluatedAtAfter(
                 eq(applicantId), any(OffsetDateTime.class))).thenReturn(true);
+        when(applicantQueryPort.findNameById(applicantId))
+                .thenReturn(Optional.of("Juan Pérez"));
 
         ExecuteEvaluationCommand command = new ExecuteEvaluationCommand(applicantId, modelId);
 
         assertThatThrownBy(() -> service.ejecutar(command))
                 .isInstanceOf(EvaluationCooldownException.class)
+                .hasMessageContaining("Juan Pérez")
                 .hasMessageContaining("últimas 24 horas");
     }
 
