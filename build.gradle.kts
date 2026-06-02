@@ -135,6 +135,28 @@ sonarqube {
         property("sonar.java.coveragePlugin", "jacoco")
         property("sonar.coverage.jacoco.xmlReportPaths", "${layout.buildDirectory}/reports/jacoco/test/jacocoTestReport.xml")
 
+        // Exclusiones de cobertura: boilerplate sin lógica de negocio cuya cobertura no aporta
+        // señal real (entidades JPA y embebidos, DTOs/requests/responses, adaptadores de PDF/CSV,
+        // puertos/interfaces, configuración y el bootstrap de la app). NO se excluye ningún
+        // servicio, caso de uso ni modelo de dominio con validaciones.
+        property(
+            "sonar.coverage.exclusions",
+            listOf(
+                "**/*JpaEntity.java",
+                "**/*Dto.java",
+                "**/*Request.java",
+                "**/*Response.java",
+                "**/persistence/AuditLogId.java",
+                "**/adapter/out/pdf/**",
+                "**/adapter/out/csv/**",
+                "**/application/dto/**",
+                "**/domain/port/**",
+                "**/config/**",
+                "**/audit/AuditableEntity.java",
+                "**/CreditScoringApplication.java"
+            ).joinToString(",")
+        )
+
         // Excluir reglas Oracle/PLSQL en migraciones Flyway — el proyecto usa PostgreSQL,
         // donde VARCHAR es el tipo correcto (VARCHAR2 no existe). Ídem duplicados en seed data.
         property("sonar.issue.ignore.multicriteria", "plsql1,plsql2,seed1")
