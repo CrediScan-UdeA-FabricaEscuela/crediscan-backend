@@ -11,6 +11,8 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import co.udea.codefactory.creditscoring.applicant.domain.exception.ApplicantValidationException;
 
@@ -74,5 +76,41 @@ class ApplicantTest {
                 EmploymentType.EMPLEADO, VALID_INCOME, 36, null, null, null, FIXED_CLOCK);
 
         assertThat(applicant.phone()).isNull();
+    }
+
+    // -------------------------------------------------------------------------
+    // Email validation (sustituye el regex vulnerable a ReDoS por validación lineal)
+    // -------------------------------------------------------------------------
+
+    @ParameterizedTest
+    @ValueSource(strings = {"juan@udea.co", "a.b@x.com", "user@sub.domain.co", "x@x.co"})
+    void registerNew_acceptsValidEmail(String email) {
+        Applicant applicant = Applicant.registerNew(
+                "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
+                EmploymentType.EMPLEADO, VALID_INCOME, 36, null, null, email, FIXED_CLOCK);
+
+        assertThat(applicant.email()).isEqualTo(email);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "sinarroba.com", "dos@@x.co", "@nolocal.co", "espacio @x.co",
+            "nodot@domain", "trailingdot@x.", "leadingdot@.co"
+    })
+    void registerNew_invalidEmail_throwsApplicantValidationException(String email) {
+        assertThatThrownBy(() -> Applicant.registerNew(
+                "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
+                EmploymentType.EMPLEADO, VALID_INCOME, 36, null, null, email, FIXED_CLOCK))
+                .isInstanceOf(ApplicantValidationException.class)
+                .hasMessageContaining("correo");
+    }
+
+    @Test
+    void registerNew_acceptsNullEmail() {
+        Applicant applicant = Applicant.registerNew(
+                "Juan Pérez", "1017234567", VALID_BIRTH_DATE,
+                EmploymentType.EMPLEADO, VALID_INCOME, 36, null, null, null, FIXED_CLOCK);
+
+        assertThat(applicant.email()).isNull();
     }
 }

@@ -150,9 +150,32 @@ public record Applicant(
     }
 
     private static void validarEmail(String email) {
-        if (email != null && !email.isBlank() && !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+        if (email != null && !email.isBlank() && !esEmailValido(email)) {
             throw new ApplicantValidationException(EMAIL_INVALID_MESSAGE);
         }
+    }
+
+    /**
+     * Valida el formato de un correo con operaciones lineales de String, evitando el regex
+     * con backtracking ({@code [^@\s]+\.[^@\s]+}) que SonarCloud marca como vulnerable a
+     * ReDoS (regla java:S5852). Acepta exactamente lo mismo que el patrón anterior
+     * {@code ^[^@\s]+@[^@\s]+\.[^@\s]+$}: sin espacios en blanco, un único {@code '@'} con
+     * parte local no vacía, y un dominio que contenga un punto que no sea su primer ni su
+     * último carácter.
+     */
+    private static boolean esEmailValido(String email) {
+        int at = email.indexOf('@');
+        if (at <= 0 || email.indexOf('@', at + 1) != -1) {
+            return false;
+        }
+        for (int i = 0; i < email.length(); i++) {
+            if (Character.isWhitespace(email.charAt(i))) {
+                return false;
+            }
+        }
+        String domain = email.substring(at + 1);
+        int dot = domain.indexOf('.', 1);
+        return dot > 0 && dot < domain.length() - 1;
     }
 
     private static void validarEdadMinima(LocalDate birthDate, Clock clock) {
