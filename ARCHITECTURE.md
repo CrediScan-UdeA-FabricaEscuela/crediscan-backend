@@ -22,6 +22,7 @@
 14. [Observabilidad](#14-observabilidad)
 15. [Cómo implementar un nuevo módulo](#15-cómo-implementar-un-nuevo-módulo)
 16. [ADRs — Decisiones de Arquitectura](#16-adrs--decisiones-de-arquitectura)
+17. [Orquestación y métricas de observabilidad](#17-orquestación--métricas-de-observabilidad)
 
 ---
 
@@ -1265,4 +1266,95 @@ CREATE TABLE new_entity (
 
 ---
 
-*Última actualización: Mayo 2026*
+---
+
+## 17. Orquestación — Métricas de observabilidad
+
+### 1. Requerimientos para la ejecución en Windows:
+- Helm
+- Minikube
+- WSL
+
+---
+
+### 2. Aislamiento Lógico y Configuración de Seguridad (Secrets)
+Creación del Namespace
+Delimita el espacio de nombres de trabajo para que tus recursos no interfieran con los componentes internos del sistema:
+
+`kubectl create namespace credit-scoring-engine`
+
+Se cargan la información del .env con kubectl:
+
+`kubectl create secret generic app-env-secret --from-env-file=.env -n credit-scoring-engine`
+
+---
+
+### 3. Construcción de Imágenes en el Entorno Local
+Minikube se ejecuta en un entorno aislado de Docker interno. Para que el clúster pueda localizar la aplicación sin necesidad de subirla a un registro público (como Docker Hub), compilamos la imagen directamente dentro del motor de Minikube:
+
+
+#### Compilar la imagen del proyecto desde la raíz del repositorio:
+`minikube image build -t credit-scoring-engine:latest .`
+
+---
+
+### 4 . Ajustes en Archivos Declarativos (k8s/*.yml)
+
+Aplicación de los Recursos Declarativos (directorio k8s):
+
+`kubectl apply -f .\\k8s\\ -n credit-scoring-engine`
+
+---
+
+### 5. Despliegue del Stack de Observabilidad (Prometheus & Grafana)
+Usa el gestor de paquetes Helm para instalar de manera automatizada todo el ecosistema de recolección de métricas. Es obligatorio pasar la bandera --kubeconfig si estás usando la ruta personalizada de no-administrador.
+
+#### 1. Registrar y actualizar los repositorios oficiales de la comunidad
+`helm repo add prometheus-community https://prometheus-community.github.io/helm-charts`
+
+
+`helm repo update`
+
+#### 2. Instalar el stack completo de Prometheus Operator
+`helm install monitoreo prometheus-community/kube-prometheus-stack  --namespace credit-scoring-engine --kubeconfig "C:\\<RUTA_DE_TU_PREFERENCIA>\\ConfigMinikube\\kubeconfig.yaml" `
+
+---
+
+### 6. Verificación de Componentes y Solución de Problemas
+Para garantizar que toda la infraestructura está saludable, ejecutamos el siguiente comando y verifica el estado global:
+
+`kubectl get pods -n credit-scoring-engine`
+
+
+Si necesitas reiniciar un despliegue para forzar la lectura de una nueva imagen de Docker:
+
+`kubectl rollout restart deployment app-deployment -n credit-scoring-engine`
+
+---
+
+### 7. Acceso y Consumo de Interfaces
+Al estar en un entorno local aislado, las rutas IP internas no son accesibles directamente desde tu navegador de Windows. Debes mapear canales seguros de comunicación en ventanas de terminal independientes.
+
+Acceso a la Aplicación (API / Swagger)
+
+`minikube service app-service -n credit-scoring-engine`
+
+Acceso al Tablero Visual de Grafana
+En una nueva pestaña de la terminal (asegurándote de volver a correr las variables del Paso 1), expón el puerto interno hacia tu máquina local:
+
+
+
+`kubectl port-forward svc/monitoreo-grafana 3000:80 -n credit-scoring-engine --kubeconfig "C:\\<RUTA_DE_TU_PREFERENCIA>\\ConfigMinikube\\kubeconfig.yaml" `
+
+Ahora Grafana está apuntando a: http://localhost:3000
+
+**NOTA:**
+Extracción Segura de Credenciales de Grafana
+El usuario predeterminado es siempre admin. Para recuperar la contraseña automática encriptada generada por Kubernetes, copia y ejecuta estas líneas de comando en PowerShell:
+
+
+`$claveBase64 = kubectl get secret monitoreo-grafana -n credit-scoring-engine --kubeconfig "C:\\<RUTA_DE_TU_PREFERENCIA>\\ConfigMinikube\\kubeconfig.yaml" -o jsonpath="{.data.admin-password}"`
+
+`[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($claveBase64))`
+
+*Última actualización: Junio 2026*

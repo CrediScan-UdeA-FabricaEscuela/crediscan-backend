@@ -52,3 +52,9 @@ test-output/
 .claude/
 .codex/
 openspec/
+
+# Kubernetes (orquestación)
+.minikube/
+/config
+kubeconfig.yaml
+helm.exe

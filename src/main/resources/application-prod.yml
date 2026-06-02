@@ -23,6 +23,10 @@ spring:
 
   flyway:
     clean-disabled: true
+    # Reintenta la conexión en vez de fallar al arranque si postgres aún no acepta
+    # conexiones (la app y la BD arrancan en paralelo sin orden garantizado en k8s).
+    connect-retries: 10
+    connect-retries-interval: 10
 
 logging:
   level:

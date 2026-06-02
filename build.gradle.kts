@@ -91,6 +91,9 @@ dependencies {
     testImplementation("io.cucumber:cucumber-spring:$cucumberVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
+
+    // Prometheus
+    implementation("io.micrometer:micrometer-registry-prometheus")
 }
 
 tasks.withType<Test> {
