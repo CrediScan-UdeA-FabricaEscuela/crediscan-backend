@@ -1,9 +1,13 @@
 package co.udea.codefactory.creditscoring.shared.exception;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -103,6 +108,41 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    /**
+     * Maneja errores de conversión de parámetros de request (p. ej. un enum inválido en un
+     * query param). Sin este handler, Spring devuelve un mensaje en inglés por defecto
+     * ("Failed to convert 'nivel' with value: 'ALTO'"). Aquí se traduce a español y, cuando
+     * el tipo esperado es un enum, se listan los valores permitidos.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex, WebRequest request) {
+        String paramName = ex.getName();
+        String value = ex.getValue() != null ? ex.getValue().toString() : "null";
+
+        StringBuilder detail = new StringBuilder()
+                .append("El parámetro '").append(paramName)
+                .append("' tiene un valor inválido: '").append(value).append("'.");
+
+        Class<?> enumType = resolveEnumType(ex);
+        if (enumType != null) {
+            String permitidos = Arrays.stream(enumType.getEnumConstants())
+                    .map(Object::toString)
+                    .collect(Collectors.joining(", "));
+            detail.append(" Valores permitidos: ").append(permitidos).append('.');
+        }
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail.toString());
+        problem.setTitle("Parámetro inválido");
+        problem.setType(URI.create(BASE_ERROR_URI + "invalid-parameter"));
+        problem.setProperty(KEY_ERROR_CODE, "INVALID_PARAMETER");
+        problem.setProperty(KEY_TRACE_ID, MDC.get(KEY_TRACE_ID));
+        problem.setProperty(KEY_TIMESTAMP, Instant.now().toString());
+        enrichWithPath(problem, request);
+
+        log.warn("Parámetro inválido [{}]: {}", paramName, ex.getMessage());
+        return problem;
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
@@ -132,6 +172,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         log.error("Unhandled exception", ex);
         return problem;
+    }
+
+    /**
+     * Resuelve el tipo enum esperado por un parámetro, soportando tanto un enum directo
+     * (p. ej. {@code RiskLevel}) como una colección de enums (p. ej. {@code List<RiskLevel>}),
+     * que es el caso de los filtros multi-valor. Para una colección, {@code getRequiredType()}
+     * devuelve {@code List}, así que el tipo del elemento se obtiene del tipo genérico del parámetro.
+     * Retorna {@code null} si el parámetro no es un enum ni una colección de enums.
+     */
+    private Class<?> resolveEnumType(MethodArgumentTypeMismatchException ex) {
+        Class<?> required = ex.getRequiredType();
+        if (required != null && required.isEnum()) {
+            return required;
+        }
+        Type generic = ex.getParameter().getGenericParameterType();
+        if (generic instanceof ParameterizedType parameterized) {
+            for (Type arg : parameterized.getActualTypeArguments()) {
+                if (arg instanceof Class<?> clazz && clazz.isEnum()) {
+                    return clazz;
+                }
+            }
+        }
+        return null;
     }
 
     private void enrichWithPath(ProblemDetail problem, WebRequest request) {
