@@ -22,7 +22,7 @@
 14. [Observabilidad](#14-observabilidad)
 15. [Cómo implementar un nuevo módulo](#15-cómo-implementar-un-nuevo-módulo)
 16. [ADRs — Decisiones de Arquitectura](#16-adrs--decisiones-de-arquitectura)
-17. [Orquestamiento y metricas de Obsevabilidad](#17-orquestamiento--metricas-de-observabilidad)
+17. [Orquestación y métricas de observabilidad](#17-orquestación--métricas-de-observabilidad)
 
 ---
 
@@ -1268,9 +1268,9 @@ CREATE TABLE new_entity (
 
 ---
 
-## 17. Orquestamiento — Metricas de observabilidad
+## 17. Orquestación — Métricas de observabilidad
 
-### 1. Requerimientos para la ejecucción en Windows: 
+### 1. Requerimientos para la ejecución en Windows:
 - Helm
 - Minikube
 - WSL
@@ -1310,7 +1310,7 @@ Aplicación de los Recursos Declarativos (directorio k8s):
 Usa el gestor de paquetes Helm para instalar de manera automatizada todo el ecosistema de recolección de métricas. Es obligatorio pasar la bandera --kubeconfig si estás usando la ruta personalizada de no-administrador.
 
 #### 1. Registrar y actualizar los repositorios oficiales de la comunidad
-`helm repo add prometheus-community [https://prometheus-community.github.io/helm-charts](https://prometheus-community.github.io/helm-charts)`
+`helm repo add prometheus-community https://prometheus-community.github.io/helm-charts`
 
 
 `helm repo update`
@@ -1346,7 +1346,7 @@ En una nueva pestaña de la terminal (asegurándote de volver a correr las varia
 
 `kubectl port-forward svc/monitoreo-grafana 3000:80 -n credit-scoring-engine --kubeconfig "C:\\<RUTA_DE_TU_PREFERENCIA>\\ConfigMinikube\\kubeconfig.yaml" `
 
-Ahora Grafana esta apuntando a: http://localhost:3000
+Ahora Grafana está apuntando a: http://localhost:3000
 
 **NOTA:**
 Extracción Segura de Credenciales de Grafana
