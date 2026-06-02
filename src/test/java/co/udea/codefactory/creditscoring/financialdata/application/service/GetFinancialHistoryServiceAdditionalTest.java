@@ -176,7 +176,6 @@ class GetFinancialHistoryServiceAdditionalTest {
 
     @Test
     void comparar_ratioEmpeora_conScore_ambosDeterioran_tendenciaDeterioro() {
-        // ratio↑ y score↓ → !ratioMejoro && !scoreMejoro && comparacionRatio != 0 → DETERIORO
         FinancialData base = datosConDeudaYScore(1, new BigDecimal("5000000"), 800);
         FinancialData comparada = datosConDeudaYScore(2, new BigDecimal("10000000"), 700); // ratio↑, score↓
 
