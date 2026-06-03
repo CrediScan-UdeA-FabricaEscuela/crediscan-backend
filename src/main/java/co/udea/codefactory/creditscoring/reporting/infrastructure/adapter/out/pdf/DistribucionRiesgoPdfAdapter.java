@@ -55,7 +55,7 @@ public class DistribucionRiesgoPdfAdapter implements GenerarReportePdfPort {
                 tabla.addCell("Score promedio");
 
                 for (var row : r.tabla()) {
-                    tabla.addCell(row.level().name());
+                    tabla.addCell(row.level().getEtiqueta());
                     tabla.addCell(String.valueOf(row.count()));
                     tabla.addCell(row.percentage() + "%");
                     tabla.addCell(row.averageScore().toString());

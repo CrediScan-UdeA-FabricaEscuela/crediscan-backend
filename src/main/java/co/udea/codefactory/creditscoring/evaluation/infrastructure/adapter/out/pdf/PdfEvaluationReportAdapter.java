@@ -66,7 +66,7 @@ public class PdfEvaluationReportAdapter implements EvaluationReportPort {
         doc.add(new Paragraph("ID Evaluación: " + evaluation.id(), bodyFont));
         doc.add(new Paragraph("Solicitante: " + evaluation.applicantId(), bodyFont));
         doc.add(new Paragraph("Puntaje Total: " + evaluation.totalScore(), bodyFont));
-        doc.add(new Paragraph("Nivel de Riesgo: " + evaluation.riskLevel(), bodyFont));
+        doc.add(new Paragraph("Nivel de Riesgo: " + evaluation.riskLevel().getEtiqueta(), bodyFont));
         doc.add(new Paragraph("Rechazado por KO: " + (evaluation.knockedOut() ? "Sí" : "No"), bodyFont));
         if (evaluation.knockoutReasons() != null) {
             doc.add(new Paragraph("Motivo: " + evaluation.knockoutReasons(), bodyFont));
