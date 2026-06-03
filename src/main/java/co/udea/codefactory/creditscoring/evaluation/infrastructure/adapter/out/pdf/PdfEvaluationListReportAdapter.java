@@ -16,6 +16,7 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 
+import co.udea.codefactory.creditscoring.creditdecision.domain.model.DecisionStatus;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchCriteria;
 import co.udea.codefactory.creditscoring.evaluation.domain.model.search.EvaluationSearchItem;
 import co.udea.codefactory.creditscoring.evaluation.domain.port.out.EvaluationListReportPort;
@@ -68,9 +69,10 @@ public class PdfEvaluationListReportAdapter implements EvaluationListReportPort 
                 table.addCell(new Phrase(item.applicantName() != null ? item.applicantName() : "", bodyFont));
                 table.addCell(new Phrase(item.evaluatedAt().toLocalDate().toString(), bodyFont));
                 table.addCell(new Phrase(item.score() != null ? item.score().toPlainString() : "", bodyFont));
-                table.addCell(new Phrase(item.riskLevel().name(), bodyFont));
+                table.addCell(new Phrase(item.riskLevel().getEtiqueta(), bodyFont));
                 table.addCell(new Phrase(
-                        item.decisionStatus() != null ? item.decisionStatus() : "SIN_DECISION", bodyFont));
+                        item.decisionStatus() != null ? decisionEtiqueta(item.decisionStatus()) : "Sin Decisión",
+                        bodyFont));
                 table.addCell(new Phrase(item.analista() != null ? item.analista() : "", bodyFont));
             }
 
@@ -79,6 +81,18 @@ public class PdfEvaluationListReportAdapter implements EvaluationListReportPort 
             return baos.toByteArray();
         } catch (com.lowagie.text.DocumentException | java.io.IOException e) {
             throw new IllegalStateException("Error al generar el PDF del listado de evaluaciones", e);
+        }
+    }
+
+    /**
+     * Convierte el nombre de un {@link DecisionStatus} (almacenado como String en la proyección)
+     * a su etiqueta en español. Usa el enum para garantizar consistencia con la definición canónica.
+     */
+    private static String decisionEtiqueta(String statusName) {
+        try {
+            return DecisionStatus.valueOf(statusName).getEtiqueta();
+        } catch (IllegalArgumentException e) {
+            return statusName;
         }
     }
 }

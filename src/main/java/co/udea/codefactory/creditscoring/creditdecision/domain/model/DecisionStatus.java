@@ -8,8 +8,17 @@ package co.udea.codefactory.creditscoring.creditdecision.domain.model;
  * (requiere aprobación de nivel superior).</p>
  */
 public enum DecisionStatus {
-    APPROVED,
-    REJECTED,
-    MANUAL_REVIEW,
-    ESCALATED
+    APPROVED("Aprobado"),
+    REJECTED("Rechazado"),
+    MANUAL_REVIEW("Revisión Manual"),
+    ESCALATED("Escalado");
+
+    private final String etiqueta;
+
+    DecisionStatus(String etiqueta) {
+        this.etiqueta = etiqueta;
+    }
+
+    /** Etiqueta en español para mostrar en reportes y PDFs generados. */
+    public String getEtiqueta() { return etiqueta; }
 }

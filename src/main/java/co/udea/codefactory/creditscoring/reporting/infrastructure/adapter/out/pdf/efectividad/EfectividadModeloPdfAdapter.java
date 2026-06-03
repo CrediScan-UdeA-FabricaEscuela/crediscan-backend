@@ -68,8 +68,8 @@ public class EfectividadModeloPdfAdapter implements GenerarEfectividadPdfPort {
                 tabla.addCell("Cantidad");
 
                 for (var celda : r.matriz().celdas()) {
-                    tabla.addCell(celda.riskLevel().name());
-                    tabla.addCell(celda.decision().name());
+                    tabla.addCell(celda.riskLevel().getEtiqueta());
+                    tabla.addCell(celda.decision().getEtiqueta());
                     tabla.addCell(String.valueOf(celda.count()));
                 }
                 doc.add(tabla);

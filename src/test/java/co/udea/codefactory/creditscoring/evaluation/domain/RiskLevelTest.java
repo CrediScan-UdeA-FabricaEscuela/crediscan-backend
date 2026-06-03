@@ -96,4 +96,21 @@ class RiskLevelTest {
         assertThat(RiskLevel.REJECTED.getMinScore()).isEqualTo(-1);
         assertThat(RiskLevel.REJECTED.getMaxScore()).isEqualTo(-1);
     }
+
+    // =========================================================================
+    // Etiquetas en español — usadas en PDFs generados
+    // =========================================================================
+
+    @ParameterizedTest(name = "{0} -> \"{1}\"")
+    @CsvSource({
+        "VERY_LOW,  Muy Bajo",
+        "LOW,       Bajo",
+        "MEDIUM,    Medio",
+        "HIGH,      Alto",
+        "VERY_HIGH, Muy Alto",
+        "REJECTED,  Rechazado"
+    })
+    void getEtiqueta_retornaLabelEnEspanol(RiskLevel level, String expectedLabel) {
+        assertThat(level.getEtiqueta()).isEqualTo(expectedLabel);
+    }
 }

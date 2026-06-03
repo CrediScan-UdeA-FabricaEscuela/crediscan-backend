@@ -8,19 +8,21 @@ import java.math.BigDecimal;
  */
 public enum RiskLevel {
 
-    VERY_LOW(85, 100),
-    LOW(70, 84),
-    MEDIUM(50, 69),
-    HIGH(30, 49),
-    VERY_HIGH(0, 29),
-    REJECTED(-1, -1);
+    VERY_LOW(85, 100, "Muy Bajo"),
+    LOW(70, 84, "Bajo"),
+    MEDIUM(50, 69, "Medio"),
+    HIGH(30, 49, "Alto"),
+    VERY_HIGH(0, 29, "Muy Alto"),
+    REJECTED(-1, -1, "Rechazado");
 
     private final int minScore;
     private final int maxScore;
+    private final String etiqueta;
 
-    RiskLevel(int min, int max) {
+    RiskLevel(int min, int max, String etiqueta) {
         this.minScore = min;
         this.maxScore = max;
+        this.etiqueta = etiqueta;
     }
 
     /**
@@ -47,6 +49,9 @@ public enum RiskLevel {
     public static RiskLevel rejected() {
         return REJECTED;
     }
+
+    /** Etiqueta en español para mostrar en reportes y PDFs generados. */
+    public String getEtiqueta() { return etiqueta; }
 
     public int getMinScore() { return minScore; }
     public int getMaxScore() { return maxScore; }
